@@ -1,5 +1,5 @@
 from fastapi import (FastAPI, BackgroundTasks, UploadFile, 
-                    File, Form, Depends, HTTPException, status, Request)
+                    File, Form, Depends, HTTPException, status, Request, Query)
 from tortoise.contrib.fastapi import register_tortoise
 from tortoise.exceptions import DoesNotExist
 from models import (User, Business, Product, user_pydantic, user_pydanticIn,
@@ -202,6 +202,43 @@ async def get_products():
     response = await product_pydantic.from_queryset(Product.all())
     return {"status": "ok", "data": response}
 
+@app.get("/", response_class=HTMLResponse)
+async def read_index(request: Request):
+    # Mengambil 6 produk dari database sebagai objek model ORM
+    products = await Product.all().limit(6).order_by("id")
+    products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
+    return templates.TemplateResponse("index.html", {"request": request, "products": products_data})
+
+@app.get("/products-page", response_class=HTMLResponse)
+async def products_page(request: Request, page: int = 1, id_category: int = None):
+    per_page = 6
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Jika id_category diberikan, filter berdasarkan id_category
+    if id_category:
+        products = await Product.filter(category_id=id_category).limit(per_page).offset(start)
+        total_products = await Product.filter(category_id=id_category).count()
+    else:
+        products = await Product.all().limit(per_page).offset(start)
+        total_products = await Product.all().count()
+
+    total_pages = (total_products + per_page - 1) // per_page
+    products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]
+
+    categories = await Category.all()  # Untuk daftar kategori pada sidebar filter
+    return templates.TemplateResponse(
+        "products.html", 
+        {
+            "request": request, 
+            "products": products_data, 
+            "page": page, 
+            "total_pages": total_pages, 
+            "categories": categories, 
+            "selected_category": id_category  # Untuk mengetahui kategori yang dipilih
+        }
+    )
+
 
 @app.get("/products/{id}")
 async def specific_product(id: int):
@@ -289,6 +326,32 @@ async def add_new_resep(resep: resep_pydanticIn):
 async def get_reseps():
     response = await resep_pydantic.from_queryset(Resep.all())
     return {"status": "ok", "data": response}
+
+@app.get("/reseps-page", response_class=HTMLResponse)
+async def reseps_page(request: Request, page: int = 1):
+    per_page = 6  # Jumlah item per halaman
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Ambil semua resep dan hitung total resep
+    reseps = await Resep.all().limit(per_page).offset(start)
+    total_reseps = await Resep.all().count()
+
+    # Hitung total halaman
+    total_pages = (total_reseps + per_page - 1) // per_page
+    reseps_data = [await resep_pydantic.from_tortoise_orm(resep) for resep in reseps]
+
+    # Kirim ke template resep.html
+    return templates.TemplateResponse(
+        "resep.html",
+        {
+            "request": request,
+            "reseps": reseps_data,
+            "page": page,
+            "total_pages": total_pages,
+        }
+    )
+
 
 # Get detailed resep by id
 @app.get("/reseps/{id}")
