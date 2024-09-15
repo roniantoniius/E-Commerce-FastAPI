@@ -32,7 +32,7 @@ import secrets
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from tortoise.transactions import in_transaction
 
 config_credentials = dict(dotenv_values(".env"))
@@ -50,7 +50,10 @@ oath2_scheme = OAuth2PasswordBearer(tokenUrl = 'token')
 @app.post('/token')
 async def generate_token(request_form: OAuth2PasswordRequestForm = Depends()):
     token = await token_generator(request_form.username, request_form.password)
-    return {'access_token' : token, 'token_type' : 'bearer'}
+    response = JSONResponse(content={'access_token': token, 'token_type': 'bearer'})
+    response.set_cookie(key="Authorization", value=f"Bearer {token}")
+    return response
+
 
 
 @post_save(User)
@@ -127,6 +130,13 @@ async def user_login(user: user_pydantic = Depends(get_current_user)):
                     "logo" : logo
                 }
             }
+
+@app.get('/logout')
+async def logout(request: Request):
+    response = RedirectResponse(url="/")
+    response.delete_cookie("Authorization")
+    return response
+
 
 @app.get("/categories")
 async def get_categories():
