@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Warung Omega{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', path='images/logo aja.png') }}" type="images/png">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,900&display=swap" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.0.7/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.2/dist/htmx.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/grid.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/popup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+    <style>
+        #login-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            padding: 20px;
+            display: none;  /* Default: tersembunyi */
+        }
+
+        .popup-content {
+            display: none;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <header>
+        <div class="mobile-menu bg-second">
+            <img src="{{ url_for('static', path='images/logo putih omega-no bg.png') }}" alt="logo" class="mb-logo" style="width: 200px; height: auto;">
+            <span class="mb-menu-toggle" id="mb-menu-toggle">
+                <i class='bx bx-menu'></i>
+            </span>
+        </div>
+        <div class="header-wrapper" id="header-wrapper">
+            <span class="mb-menu-toggle mb-menu-close" id="mb-menu-close">
+                <i class='bx bx-x'></i>
+            </span>
+            <div class="bg-second">
+                <div class="top-header container">
+                    <ul class="devided">
+                        <li>
+                            <a href="#">+6210000</a>
+                        </li>
+                        <li>
+                            <a href="#">warungOmega@gmail.com</a>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+
+            <div class="bg-main">
+                <div class="mid-header container">
+                    <img src="{{ url_for('static', path='images/logo putih omega-no bg.png')}}" alt="logo" class="mb-logo" style="width: 200px; height: auto;">
+                    <div class="search">
+                        <input type="text" placeholder="Search">
+                        <i class='bx bx-search-alt'></i>
+                    </div>
+                    <ul class="user-menu">
+                        {% if username %}
+                            <li>Welcome, {{ username }}</li>
+                            <li><a href="{{ url_for('logout') }}"><i class='bx bx-log-out'></i></a></li>
+                        {% else %}
+                            <li><a href="#" id="login-btn"><i class='bx bx-user-circle'></i></a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-second">
+                <div class="bottom-header container">
+                    <ul class="main-menu">
+                        <li><a href="/">home</a></li>
+                        <li><a href="/products-page">seafood</a></li>
+                        <li><a href="/reseps-page">recipe</a></li>
+                        <li><a href="/contact">contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="login-popup" style="display:none;">
+        <div class="popup-card">
+            <span id="close-popup" class="popup-close">&times;</span>
+
+            <div id="login-form-container">
+                <h3>Login</h3>
+                <form id="login-form" action="/token" method="post">
+                    <input type="text" name="username" class="input-field" placeholder="Username" required><br>
+                    <input type="password" name="password" class="input-field" placeholder="Password" required><br>
+                    <button type="submit" class="form-button">Login</button>
+                </form>
+                <br>
+                <p>Don't have an account? <br><br><a href="#" id="show-register-form" style="background-color: #f99090; border-radius: 5px; padding: 5px; color: black; display: inline;">Register here</a></p>
+            </div>
+
+            <div id="register-form-container">
+                <h3>Register</h3>
+                <form id="register-form" action="/registration" method="post">
+                    <input type="text" name="username" class="input-field" placeholder="Username" required><br>
+                    <input type="email" name="email" class="input-field" placeholder="Email" required><br>
+                    <input type="password" name="password" class="input-field" placeholder="Password" required><br>
+                    <input type="text" name="phone" class="input-field" placeholder="Phone" required><br>
+                    <textarea name="address" class="input-field" placeholder="Address"></textarea><br>
+                    <button type="submit" class="form-button">Register</button>
+                </form>
+                <br>
+                <p>Already have an account? <br><br><a href="#" id="show-login-form" style="background-color: #f99090; border-radius: 5px; padding: 5px; color: black; display: inline;">Login here</a></p>
+            </div>
+        </div>
+    </div>
+
+    {% block content %}
+
+    {% endblock %}
+
+    <!-- footer -->
+    <footer class="bg-second">
+        <div class="container">
+            <div class="row">
+                <div class="col-4 col-md-6">
+                    <h3 class="footer-head">Products</h3>
+                    <ul class="menu">
+                        <li><a href="#">Help center</a></li>
+                        <li><a href="#">Contact us</a></li>
+                        <li><a href="#">Food Healthy</a></li>
+                        <li><a href="#">warranty</a></li>
+                        <li><a href="#">order status</a></li>
+                    </ul>
+                </div>
+                <div class="col-4 col-md-6">
+                    <h3 class="footer-head">services</h3>
+                    <ul class="menu">
+                        <li><a href="#">Midtrans</a></li>
+                        <li><a href="#">FastAPI</a></li>
+                        <li><a href="#">Postgre</a></li>
+                        <li><a href="#">Elastic Search</a></li>
+                    </ul>
+                </div>
+                <div class="col-4 col-md-6 col-sm-12">
+                    <div class="contact">
+                        <img src="{{ url_for('static', path='images/logo putih omega-no bg.png')}}" alt="logo" class="mb-logo" style="width: 280px; height: auto;">
+                        <ul class="contact-socials">
+                            <li><a href="https://www.instagram.com/aantoniusron/">
+                                    <i class='bx bxl-instagram-alt'></i>
+                                </a></li>
+                            <!-- LinkedIn -->
+                            <li><a href="https://www.linkedin.com/in/aantoniusron/">
+                                <i class='bx bxl-linkedin-square'></i>
+                            </a></li>
+
+                            <!-- GitHub -->
+                            <li><a href="https://github.com/roniantoniius">
+                                <i class='bx bxl-github'></i>
+                            </a></li>
+                        </ul>
+                    </div>
+                    <div class="subscribe">
+                        <input type="email" placeholder="ENTER YOUR EMAIL">
+                        <button>subscribe</button>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-content">
+                <a href="https://github.com/roniantoniius">Developed and Licensed CC BY-ND 4.0 by <strong>Roni Antonius Sinabutar</strong> <sup>™</sup></a>
+            </div>
+        </div>
+    </footer>
+    <!-- end footer -->
+
+    <!-- app js -->
+    <script src="{{ url_for('static', path='js/app.js')}}"></script>
+    <script src="{{ url_for('static', path='js/index.js')}}"></script>
+
+<script>
+    // Fungsi untuk menampilkan form login
+    document.getElementById("login-btn").onclick = function() {
+        document.getElementById("login-popup").style.display = "block";
+        document.getElementById("login-form-container").style.display = "block"; // Tampilkan form login
+        document.getElementById("register-form-container").style.display = "none"; // Sembunyikan form register
+    };
+
+    // Fungsi untuk menutup popup
+    document.getElementById("close-popup").onclick = function() {
+        document.getElementById("login-popup").style.display = "none";
+    };
+
+    // Fungsi untuk menampilkan form register
+    document.getElementById("show-register-form").onclick = function() {
+        document.getElementById("login-form-container").style.display = "none"; // Sembunyikan form login
+        document.getElementById("register-form-container").style.display = "block"; // Tampilkan form register
+    };
+
+    // Fungsi untuk menampilkan form login dari form register
+    document.getElementById("show-login-form").onclick = function() {
+        document.getElementById("register-form-container").style.display = "none"; // Sembunyikan form register
+        document.getElementById("login-form-container").style.display = "block"; // Tampilkan form login
+    };
+
+    // Atur klik di luar popup untuk menutup popup
+    window.onclick = function(event) {
+        if (event.target == document.getElementById("login-popup")) {
+            document.getElementById("login-popup").style.display = "none";
+        }
+    }
+
+    document.getElementById("login-form").onsubmit = async function(event) {
+        event.preventDefault();  // Mencegah form dari refresh halaman
+        
+        // Ambil nilai input username dan password
+        const formData = new FormData(this);
+        const username = formData.get('username');
+        const password = formData.get('password');
+        
+        // Kirim data form dengan fetch
+        const response = await fetch('/token', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.redirected) {
+            // Redirect ke halaman jika login berhasil
+            window.location.href = response.url;
+        } else {
+            // Jika terjadi error, tampilkan error atau beri umpan balik
+            alert("Login failed");
+        }
+    };
+
+    document.getElementById("register-form").onsubmit = async function(event) {
+        event.preventDefault();  // Prevent the default form submission behavior
+
+        // Collect form data
+        const formData = new FormData(this);
+        const username = formData.get('username');
+        const email = formData.get('email');
+        const password = formData.get('password');
+        const phone = formData.get('phone');
+        const address = formData.get('address');
+
+        // Send form data to the /registration endpoint
+        const response = await fetch('/registration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password,
+                phone: phone,
+                address: address
+            })
+        });
+
+        // Handle response
+        const result = await response.json();
+        if (response.ok) {
+            alert(result.data); // Show success message
+        } else {
+            alert("Registration failed: " + result.detail); // Show error message
+        }
+    };
+
+</script>
+</body>
+
+</html>
