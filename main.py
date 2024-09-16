@@ -37,7 +37,6 @@ from tortoise.transactions import in_transaction
 
 config_credentials = dict(dotenv_values(".env"))
 
-
 app = FastAPI(
     title="Warung Omega API: E-commerce Seafood Restaurant",
     version="3,14"
@@ -50,11 +49,9 @@ oath2_scheme = OAuth2PasswordBearer(tokenUrl = 'token')
 @app.post('/token')
 async def generate_token(request_form: OAuth2PasswordRequestForm = Depends()):
     token = await token_generator(request_form.username, request_form.password)
-    response = JSONResponse(content={'access_token': token, 'token_type': 'bearer'})
-    response.set_cookie(key="Authorization", value=f"Bearer {token}")
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)  # Redirect ke halaman utama setelah login
+    response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)  # Simpan token di cookie
     return response
-
-
 
 @post_save(User)
 async def create_business(
@@ -71,16 +68,32 @@ async def create_business(
         await send_email([instance.email], instance)
 
 
+# @app.post('/registration')
+# async def user_registration(user: user_pydanticIn):
+#     user_info = user.dict(exclude_unset = True)
+#     user_info['password'] = get_password_hash(user_info['password'])
+#     user_obj = await User.create(**user_info)
+#     new_user = await user_pydantic.from_tortoise_orm(user_obj)
+ 
+#     return {"status" : "ok", 
+#             "data" : 
+#                 f"Hello {new_user.username} thanks for choosing our services. Please check your email inbox and click on the link to confirm your registration."}
+
 @app.post('/registration')
 async def user_registration(user: user_pydanticIn):
-    user_info = user.dict(exclude_unset = True)
+    user_info = user.dict(exclude_unset=True)
     user_info['password'] = get_password_hash(user_info['password'])
     user_obj = await User.create(**user_info)
     new_user = await user_pydantic.from_tortoise_orm(user_obj)
  
-    return {"status" : "ok", 
-            "data" : 
-                f"Hello {new_user.username} thanks for choosing our services. Please check your email inbox and click on the link to confirm your registration."}
+    await send_email([new_user.email], new_user)  # Send verification email
+    
+    return {
+        "status": "ok",
+        "data": f"Hello {new_user.username}, thanks for choosing our services. Please check your email inbox and click on the link to confirm your registration."
+    }
+
+
 
 templates = Jinja2Templates(directory="templates")
 
@@ -134,8 +147,14 @@ async def user_login(user: user_pydantic = Depends(get_current_user)):
 @app.get('/logout')
 async def logout(request: Request):
     response = RedirectResponse(url="/")
-    response.delete_cookie("Authorization")
+    response.delete_cookie("Authorization")  # Menghapus cookie token
     return response
+
+
+
+@app.get('/contact', response_class=HTMLResponse)
+async def contact_page(request: Request):
+    return templates.TemplateResponse("contact.html", {"request": request})
 
 
 @app.get("/categories")
@@ -214,10 +233,18 @@ async def get_products():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
+    token = request.cookies.get("Authorization")  # Mengambil token dari cookie
+    if token:
+        user = await get_current_user(token.split(" ")[1])  # Mengambil user dari token
+        username = user.username
+    else:
+        username = None
+    
     # Mengambil 6 produk dari database sebagai objek model ORM
     products = await Product.all().limit(6).order_by("id")
     products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
-    return templates.TemplateResponse("index.html", {"request": request, "products": products_data})
+    
+    return templates.TemplateResponse("index.html", {"request": request, "products": products_data, "username": username})
 
 @app.get("/products-page", response_class=HTMLResponse)
 async def products_page(request: Request, page: int = 1, id_category: int = None):
@@ -295,6 +322,30 @@ async def delete_product(id: int, user: user_pydantic = Depends(get_current_user
             detail="Not authenticated to perform this action",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+@app.get("/products-detail/{id}", response_class=HTMLResponse)
+async def product_detail(request: Request, id: int):
+    try:
+        product = await Product.get(id=id)
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Ambil data business dan category jika dibutuhkan
+    business = await product.business
+    owner = await business.owner
+    category = await product.category
+
+    # Return halaman detail produk dengan data produk
+    return templates.TemplateResponse(
+        "product-detail.html", 
+        {
+            "request": request,
+            "product": product,
+            "business": business,
+            "owner": owner,
+            "category": category
+        }
+    )
 
 @app.put("/product/{id}")
 async def update_product(id: int, update_info: product_pydanticIn, user: user_pydantic = Depends(get_current_user)):
