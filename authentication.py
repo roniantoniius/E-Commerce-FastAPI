@@ -18,8 +18,6 @@ def get_password_hash(password):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-
-
 async def authenticate_user(username: str, password: str):
     user = await User.get(username = username)
 
@@ -46,8 +44,6 @@ async def token_generator(username: str, password: str):
     token = jwt.encode(token_data, config_credentials["SECRET"], algorithm="HS256")
     return token
 
-
-
 async def verify_token(token: str):
     try:
         payload = jwt.decode(token, config_credentials['SECRET'], algorithms = ['HS256'])
@@ -58,7 +54,6 @@ async def verify_token(token: str):
             detail = "Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     return user
 
 
