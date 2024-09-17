@@ -5,7 +5,6 @@ from datetime import datetime
 from tortoise.contrib.pydantic import pydantic_model_creator
 
 class User(Model):
-    # fields are null = False by default but i specified it for clarity
     id = fields.IntField(pk = True, index = True)
     username = fields.CharField(max_length = 20, null = False, unique = True)
     email = fields.CharField(max_length = 200, null = False, unique = True)
