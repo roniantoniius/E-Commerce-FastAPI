@@ -58,26 +58,20 @@ class Resep(Model):
     langkah_2 = fields.TextField(null=True)
     langkah_3 = fields.TextField(null=True)
 
-
-class Pesan(Model):
-    id_pesan = fields.IntField(pk=True, index=True)
-    cart = fields.ForeignKeyField('models.Cart', related_name='pesan')
-    produk = fields.ForeignKeyField('models.Product', related_name='pesan')
+class Beli(Model):
+    id_beli = fields.IntField(pk=True, index=True)
+    user = fields.ForeignKeyField('models.User', related_name='belis', on_delete=fields.CASCADE)
+    product = fields.ForeignKeyField('models.Product', related_name='belis', on_delete=fields.CASCADE)
     kuantitas = fields.IntField()
-    harga_kuantitas = fields.DecimalField(max_digits=12, decimal_places=2)
+    harga_total = fields.DecimalField(max_digits=12, decimal_places=2)
+
+class Transaksi(Model):
+    id_transaksi = fields.IntField(pk=True, index=True)
+    user = fields.ForeignKeyField('models.User', related_name='transaksis', on_delete=fields.CASCADE)
+    belis = fields.ManyToManyField('models.Beli', related_name='transaksis')
+    total = fields.DecimalField(max_digits=12, decimal_places=2)
+    status = fields.BooleanField(default=False)
     
-class Cart(Model):
-    cart_id = fields.IntField(pk=True, index=True)
-    user = fields.ForeignKeyField('models.User', related_name='cart')
-    harga_total = fields.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-class Transaction(Model):
-    id_transaction = fields.IntField(pk=True, index=True)
-    cart = fields.ForeignKeyField('models.Cart', related_name='transaction')
-
-class Report(Model):
-    id_report = fields.IntField(pk=True, index=True)
-    transaction = fields.ForeignKeyField('models.Transaction', related_name='report')
 
 
 user_pydantic = pydantic_model_creator(User, name ="User", exclude=("is_verified",))
@@ -93,18 +87,11 @@ category_pydanticIn = pydantic_model_creator(Category, name = "CategoryIn", excl
 product_pydantic  = pydantic_model_creator(Product, name = "Product")
 product_pydanticIn = pydantic_model_creator(Product, name = "ProductIn", exclude = ("percentage_discount", "id", "product_image", "date_published"))
 
-
 resep_pydantic = pydantic_model_creator(Resep, name="Resep")
 resep_pydanticIn = pydantic_model_creator(Resep, name="ResepIn", exclude_readonly= ("id", "gambar_resep"))
 
-pesan_pydantic = pydantic_model_creator(Pesan, name="Pesan", include=("id_pesan", "produk", "cart", "kuantitas", "harga_kuantitas"))
-pesan_pydanticIn = pydantic_model_creator(Pesan, name="PesanIn", exclude_readonly=True, exclude=["harga_kuantitas"])
+beli_pydantic = pydantic_model_creator(Beli, name="Beli")
+beli_pydanticIn = pydantic_model_creator(Beli, name="BeliIn", exclude=("id_beli", "user", "harga_total"))
 
-cart_pydantic = pydantic_model_creator(Cart, name="Cart")
-cart_pydanticIn = pydantic_model_creator(Cart, name="CartIn", exclude_readonly=True)
-
-transaction_pydantic = pydantic_model_creator(Transaction, name="Transaction")
-transaction_pydanticIn = pydantic_model_creator(Transaction, name="TransactionIn", exclude_readonly=True)
-
-report_pydantic = pydantic_model_creator(Report, name="Report")
-report_pydanticIn = pydantic_model_creator(Report, name="ReportIn", exclude_readonly=True)
+transaksi_pydantic = pydantic_model_creator(Transaksi, name="Transaksi")
+transaksi_pydanticIn = pydantic_model_creator(Transaksi, name="TransaksiIn", exclude=("id_transaksi", "user", "belis", "status"))
