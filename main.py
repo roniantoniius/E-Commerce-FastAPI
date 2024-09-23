@@ -4,10 +4,8 @@ from tortoise.contrib.fastapi import register_tortoise
 from tortoise.exceptions import DoesNotExist
 from models import (User, Business, Product, user_pydantic, user_pydanticIn,
                     product_pydantic, product_pydanticIn, business_pydantic,
-                    business_pydanticIn, user_pydanticOut, Resep, resep_pydantic, resep_pydanticIn,
-                    Pesan, pesan_pydantic, pesan_pydanticIn, Cart, cart_pydantic, cart_pydanticIn,
-                    Transaction, transaction_pydantic, transaction_pydanticIn, Report, report_pydantic,
-                    report_pydanticIn, Category, category_pydantic, category_pydanticIn)
+                    business_pydanticIn, user_pydanticOut, Resep, resep_pydantic, resep_pydanticIn, Category, category_pydantic, category_pydanticIn, Beli, beli_pydantic, beli_pydanticIn,
+                    Transaksi, transaksi_pydantic, transaksi_pydanticIn)
 from tortoise.signals import  post_save 
 from typing import List, Optional, Type
 from tortoise import BaseDBAsyncClient, Model
@@ -49,9 +47,10 @@ oath2_scheme = OAuth2PasswordBearer(tokenUrl = 'token')
 @app.post('/token')
 async def generate_token(request_form: OAuth2PasswordRequestForm = Depends()):
     token = await token_generator(request_form.username, request_form.password)
-    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)  # Redirect ke halaman utama setelah login
-    response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)  # Simpan token di cookie
-    return response
+    # response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)  # Redirect ke halaman utama setelah login
+    # response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)  # Simpan token di cookie
+    # return response
+    return {"access_token": token, "token_type": "bearer"}
 
 @post_save(User)
 async def create_business(
@@ -68,17 +67,6 @@ async def create_business(
         await send_email([instance.email], instance)
 
 
-# @app.post('/registration')
-# async def user_registration(user: user_pydanticIn):
-#     user_info = user.dict(exclude_unset = True)
-#     user_info['password'] = get_password_hash(user_info['password'])
-#     user_obj = await User.create(**user_info)
-#     new_user = await user_pydantic.from_tortoise_orm(user_obj)
- 
-#     return {"status" : "ok", 
-#             "data" : 
-#                 f"Hello {new_user.username} thanks for choosing our services. Please check your email inbox and click on the link to confirm your registration."}
-
 @app.post('/registration')
 async def user_registration(user: user_pydanticIn):
     user_info = user.dict(exclude_unset=True)
@@ -92,8 +80,6 @@ async def user_registration(user: user_pydanticIn):
         "status": "ok",
         "data": f"Hello {new_user.username}, thanks for choosing our services. Please check your email inbox and click on the link to confirm your registration."
     }
-
-
 
 templates = Jinja2Templates(directory="templates")
 
@@ -433,239 +419,195 @@ async def delete_resep(id: int):
     await resep.delete()
     return {"status": "ok"}
     
-
-class PesanInput(BaseModel):
+class BeliInput(BaseModel):
     produk_id: int
     kuantitas: int
-    cart_id: int
 
-
-@app.post("/pesans")
-async def create_pesan(pesan_input: PesanInput, user: user_pydantic = Depends(get_current_user)):
-    # Mendapatkan Cart berdasarkan cart_id
-    try:
-        cart = await Cart.get(cart_id=pesan_input.cart_id, user=user)
-    except Cart.DoesNotExist:
-        raise HTTPException(status_code=404, detail="Cart tidak ditemukan atau tidak sesuai")
-
-    # Mendapatkan produk berdasarkan ID
-    produk = await Product.get(id=pesan_input.produk_id)
+@app.post("/belis")
+async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_current_user)):
+    # Retrieve product by ID
+    produk = await Product.get(id=beli_input.produk_id)
     if not produk:
         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
 
-    # Menghitung harga_kuantitas
-    harga_kuantitas = produk.new_price * pesan_input.kuantitas
+    # Calculate harga_total
+    harga_total = produk.new_price * beli_input.kuantitas
 
-    # Membuat Pesan baru
-    pesan_obj = await Pesan.create(
-        produk=produk,
-        cart=cart,
-        kuantitas=pesan_input.kuantitas,
-        harga_kuantitas=harga_kuantitas
+    # Create new Beli object
+    beli_obj = await Beli.create(
+        user_id=user.id,
+        product_id=produk.id,
+        kuantitas=beli_input.kuantitas,
+        harga_total=harga_total
     )
 
-    # Menghitung total harga baru pada Cart
-    pesan_list = await Pesan.filter(cart=cart).values_list('harga_kuantitas', flat=True)
-    total_harga = sum(pesan_list)
+    return {"status": "ok", "data": await beli_pydantic.from_tortoise_orm(beli_obj)}
 
-    # Update cart dengan harga_total baru
-    cart.harga_total = total_harga
-    await cart.save()
+@app.get("/belis/me")
+async def get_my_belis(user: user_pydantic = Depends(get_current_user)):
+    # Retrieve all Beli entries for the currently logged in user
+    belis = await Beli.filter(user=user).select_related('product')
 
-    return {"status": "ok", "data": await pesan_pydantic.from_tortoise_orm(pesan_obj)}
-
-
-@app.get("/pesans/{id_pesan}")
-async def specific_pesan(id_pesan: int):
-    # Mendapatkan pesan berdasarkan id_pesan
-    pesan = await Pesan.get(id_pesan=id_pesan).select_related('produk', 'cart')
-    if not pesan:
-        raise HTTPException(status_code=404, detail="Pesan tidak ditemukan")
-
-    # Mendapatkan detail produk dan cart
-    produk = await pesan.produk
-    cart = await pesan.cart
-    user = await cart.user
-
-    # Membuat response
-    pesan_details = await pesan_pydantic.from_queryset_single(Pesan.get(id_pesan=id_pesan))
-
-    return {
-        "status": "ok",
-        "data": {
-            "pesan_details": pesan_details,
-            "produk_details": {
-                "produk_id": produk.id,
-                "nama_produk": produk.name,
-                "kategori": produk.category,
-                "harga": produk.new_price
-            },
-            "cart_details": {
-                "cart_id": cart.cart_id,
-                "user_id": user.id,
-                "user_email": user.email,
-                "harga_total": cart.harga_total
+    # Prepare list of beli data along with product details
+    beli_list = []
+    for beli in belis:
+        product = beli.product
+        beli_data = {
+            "beli_id": beli.id_beli,
+            "kuantitas": beli.kuantitas,
+            "harga_total": beli.harga_total,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "original_price": product.original_price,
+                "new_price": product.new_price,
+                "percentage_discount": product.percentage_discount,
+                "product_description": product.product_description
             }
         }
+        beli_list.append(beli_data)
+
+    return {"status": "ok", "data": beli_list}  # Kembalikan struktur dictionary
+
+
+@app.get("/belis/{id_beli}")
+async def get_beli_by_id(id_beli: int):
+    # Retrieve Beli by ID
+    beli = await Beli.get(id_beli=id_beli).select_related('product', 'user')
+    if not beli:
+        raise HTTPException(status_code=404, detail="Beli tidak ditemukan")
+
+    # Convert to Pydantic model
+    beli_details = await beli_pydantic.from_tortoise_orm(beli)
+
+    # Access product details
+    product = beli.product  # This retrieves the related product
+    user = beli.user
+
+    # Prepare response
+    response_data = {
+        "status": "ok",
+        "data": {
+            "beli_details": beli_details,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "original_price": product.original_price,
+                "new_price": product.new_price,
+                "percentage_discount": product.percentage_discount,
+                "product_description": product.product_description
+            },  # <--- added a comma here
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email
+            }
+        }  # <--- added a closing bracket here
     }
 
+    return response_data
 
-@app.get("/pesans", response_model=List[pesan_pydantic])
-async def get_pesans():
-    # Mendapatkan semua Pesan
-    pesans = await Pesan.all().select_related('produk', 'cart')  # Pastikan untuk mengikutkan relasi produk dan cart
-    return pesans
 
-@app.delete("/pesans/{pesan_id}")
-async def delete_pesan(pesan_id: int):
-    # Mencari Pesan berdasarkan ID
-    pesan = await Pesan.get(id_pesan=pesan_id)
-    if not pesan:
-        raise HTTPException(status_code=404, detail="Pesan tidak ditemukan")
+@app.get("/belis", response_model=List[beli_pydantic])
+async def get_belis(user: user_pydantic = Depends(get_current_user)):
+    # Retrieve all Beli for the current user
+    belis = await Beli.filter(user=user).select_related('product')
+    return belis
 
-    # Menghapus Pesan
-    await pesan.delete()
-    return {"status": "ok", "message": "Pesan berhasil dihapus"}
+@app.delete("/belis/{id_beli}")
+async def delete_beli(id_beli: int):
+    # Retrieve Beli by ID
+    beli = await Beli.get(id_beli=id_beli)
+    if not beli:
+        raise HTTPException(status_code=404, detail="Beli tidak ditemukan")
 
-@app.get("/carts")
-async def get_carts():
-    response = await cart_pydantic.from_queryset(Cart.all())
-    return {"status": "ok", "data": response}
+    # Delete the Beli
+    await beli.delete()
+    return {"status": "ok", "message": "Beli berhasil dihapus"}
 
-# Post Cart
-@app.post("/carts")
-async def create_cart(user: user_pydantic = Depends(get_current_user)):
-    cart_obj = await Cart.create(user=user)
-    return {"status": "ok", "data": await cart_pydantic.from_tortoise_orm(cart_obj)}
+class TransaksiInput(BaseModel):
+    total: float
+
+@app.post("/transaksis")
+async def create_transaksi(transaksi_input: TransaksiInput,
+                           user: user_pydantic = Depends(get_current_user)):
     
+    belis = await Beli.filter(user=user).select_related('product')
+    if not belis:
+        raise HTTPException(status_code=404, detail="Tidak ada beli yang ditemukan")
+    
+    # transaksi baru objek
+    transaksi_obj = await Transaksi.create(
+        user_id = user.id,
+        total = transaksi_input.total,
+    )
 
-@app.delete("/carts/{cart_id}")
-async def delete_cart(cart_id: int, user: user_pydantic = Depends(get_current_user)):
-    cart = await Cart.get(cart_id=cart_id)
-    if cart.user_id == user.id:
-        await cart.delete()
-        return {"status": "ok"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated to perform this action",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    for beli in belis:
+        await transaksi_obj.belis.add(beli)
 
-# Get Transaction
-@app.get("/transactions")
-async def get_transactions():
-    response = await transaction_pydantic.from_queryset(Transaction.all())
-    return {"status": "ok", "data": response}
+    return {"status": "ok",
+            "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj)}
 
-@app.get("/transactions")
-async def get_transactions():
-    response = await transaction_pydantic.from_queryset(Transaction.all())
-    return {"status": "ok", "data": response}
+@app.get("/transaksis", response_model=List[transaksi_pydantic])
+async def get_transaksis(user: user_pydantic = Depends(get_current_user)):
+    transaksis = await Transaksi.filter(user=user).prefetch_related('belis')
+    return transaksis
 
-@app.get("/transactions/{id_transaction}")
-async def specific_transaction(id_transaction: int):
-    # Mendapatkan transaction berdasarkan id_transaction
-    transaction = await Transaction.get(id_transaction=id_transaction).select_related('cart')
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction tidak ditemukan")
+@app.delete("/transaksis/{id_transaksi}")
+async def delete_transaksi(id_transaksi: int,
+                           user: user_pydantic = Depends(get_current_user)):
+    
+    transaksi = await Transaksi.get(id_transaksi=id_transaksi, user=user)
 
-    # Mendapatkan detail cart
-    cart = await transaction.cart
-    user = await cart.user
+    if not transaksi:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+    
+    # delete transaaction
+    await transaksi.delete()
+    return {"status": "ok",
+            "message": "Transaction deleted successfully"}
 
-    # Membuat response
-    transaction_details = await transaction_pydantic.from_queryset_single(Transaction.get(id_transaction=id_transaction))
+@app.get("/transaksis/{id_transaksi}", response_class=JSONResponse)
+async def get_transaksi_by_id(id_transaksi: int, user: user_pydantic = Depends(get_current_user)):
+    # Cek apakah transaksi dengan id tersebut ada dan milik user yang sedang login
+    try:
+        transaksi = await Transaksi.get(id_transaksi=id_transaksi, user=user).prefetch_related('belis')
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
 
-    return {
-        "status": "ok",
-        "data": {
-            "transaction_details": transaction_details,
-            "cart_details": {
-                "cart_id": cart.cart_id,
-                "user_id": user.id,
-                "user_email": user.email,
-                "harga_total": cart.harga_total
+    # Ambil semua beli yang terhubung dengan transaksi tersebut
+    belis = transaksi.belis
+
+    # List untuk menyimpan detail transaksi
+    beli_list = []
+    for beli in belis:
+        product = await beli.product
+
+        # Append data beli dan produk terkait
+        beli_data = {
+            "beli_id": beli.id_beli,
+            "kuantitas": beli.kuantitas,
+            "harga_total": beli.harga_total,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "original_price": product.original_price,
+                "new_price": product.new_price,
+                "percentage_discount": product.percentage_discount,
+                "product_description": product.product_description
             }
         }
+        beli_list.append(beli_data)
+
+    # Siapkan respon JSON dengan detail transaksi
+    transaksi_data = {
+        "id_transaksi": transaksi.id_transaksi,
+        "total": transaksi.total,
+        "status": transaksi.status,
+        "belis": beli_list
     }
 
-
-@app.post("/transactions")
-async def create_transaction(cart_id: int):
-    # Mendapatkan Cart berdasarkan cart_id
-    try:
-        cart = await Cart.get(cart_id=cart_id)
-    except Cart.DoesNotExist:
-        raise HTTPException(status_code=404, detail="Cart tidak ditemukan")
-
-    # Membuat Transaction baru
-    transaction_obj = await Transaction.create(cart=cart)
-    return {"status": "ok", "data": await transaction_pydantic.from_tortoise_orm(transaction_obj)}
-
-@app.delete("/transactions/{transaction_id}")
-async def delete_transaction(transaction_id: int):
-    try:
-        transaction = await Transaction.get(id_transaction=transaction_id)
-        await transaction.delete()
-        return {"status": "ok"}
-    except Transaction.DoesNotExist:
-        raise HTTPException(status_code=404, detail="Transaction tidak ditemukan")
-
-@app.get("/reports")
-async def get_reports():
-    response = await report_pydantic.from_queryset(Report.all())
-    return {"status": "ok", "data": response}
-
-@app.post("/reports")
-async def create_report(transaction_id: int):
-    # Mendapatkan Transaction berdasarkan transaction_id
-    try:
-        transaction = await Transaction.get(id_transaction=transaction_id)
-    except Transaction.DoesNotExist:
-        raise HTTPException(status_code=404, detail="Transaction tidak ditemukan")
-
-    # Membuat Report baru
-    report_obj = await Report.create(transaction=transaction)
-    return {"status": "ok", "data": await report_pydantic.from_tortoise_orm(report_obj)}
-
-@app.get("/reports/{id_report}")
-async def specific_report(id_report: int):
-    # Mendapatkan report berdasarkan id_report
-    report = await Report.get(id_report=id_report).select_related('transaction')
-    if not report:
-        raise HTTPException(status_code=404, detail="Report tidak ditemukan")
-
-    # Mendapatkan detail transaction
-    transaction = await report.transaction
-    cart = await transaction.cart
-    user = await cart.user
-
-    # Membuat response
-    report_details = await report_pydantic.from_queryset_single(Report.get(id_report=id_report))
-
-    return {
-        "status": "ok",
-        "data": {
-            "report_details": report_details,
-            "transaction_details": {
-                "transaction_id": transaction.id_transaction,
-                "cart_id": cart.cart_id,
-                "user_id": user.id,
-                "user_email": user.email,
-            }
-        }
-    }
-
-
-@app.delete("/reports/{report_id}")
-async def delete_report(report_id: int):
-    try:
-        report = await Report.get(id_report=report_id)
-        await report.delete()
-        return {"status": "ok"}
-    except Report.DoesNotExist:
-        raise HTTPException(status_code=404, detail="Report tidak ditemukan")
+    return {"status": "ok", "data": transaksi_data}
 
 
 # image upload
