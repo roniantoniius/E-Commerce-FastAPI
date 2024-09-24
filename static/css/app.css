@@ -573,27 +573,6 @@ ul.devided > li:last-child {
     margin-left: 5px;
 }
 
-.cart-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-}
-
-.cart-table th, .cart-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-}
-
-.cart-table th {
-    background-color: #f2f2f2;
-}
-
-.cart-total {
-    text-align: right;
-    margin-top: 20px;
-}
-
 .btn-shop-now,
 .btn-cart-add {
     font-size: 15px;
