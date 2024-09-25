@@ -399,6 +399,21 @@ async def reseps_page(request: Request, page: int = 1):
         }
     )
 
+@app.get("/reseps-detail/{id}", response_class=HTMLResponse)
+async def resep_detail(request: Request, id: int):
+    try:
+        resep = await Resep.get(id=id)
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Resep was not found")
+    
+    return templates.TemplateResponse(
+        "resep-detail.html",
+        {
+            "request": request,
+            "resep": resep,
+        }
+    )
+
 
 # Get detailed resep by id
 @app.get("/reseps/{id}")
