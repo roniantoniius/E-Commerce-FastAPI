@@ -25,8 +25,6 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: white;
-            border: 1px solid #ccc;
             z-index: 1000;
             padding: 20px;
             display: none;  /* Default: tersembunyi */
@@ -75,10 +73,10 @@
                     </div>
                     <ul class="user-menu">
                         {% if username %}
-                            <li>Welcome, {{ username }}</li>
-                            <li><a href="{{ url_for('logout') }}"><i class='bx bx-log-out'></i></a></li>
+                            <li> Whoaa, {{ username }}?</li>
+                            <li><a href="{{ url_for('logout') }}" style="font-size: 18px; padding-left: 10px;"><i class='bx bx-log-out' style="padding-right: 10px;"></i>Logout</a></li>
                         {% else %}
-                            <li><a href="#" id="login-btn"><i class='bx bx-user-circle'></i></a></li>
+                            <li><a href="#" id="login-btn" style="font-size: 18px; padding-left: 10px;"><i class='bx bx-user-circle' style="padding-right: 10px;"></i>Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
