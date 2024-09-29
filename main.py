@@ -29,6 +29,7 @@ from fastapi import File, UploadFile
 import secrets
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from tortoise.transactions import in_transaction
@@ -40,6 +41,14 @@ app = FastAPI(
     version="3,14"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 oath2_scheme = OAuth2PasswordBearer(tokenUrl = 'token')
@@ -47,10 +56,14 @@ oath2_scheme = OAuth2PasswordBearer(tokenUrl = 'token')
 @app.post('/token')
 async def generate_token(request_form: OAuth2PasswordRequestForm = Depends()):
     token = await token_generator(request_form.username, request_form.password)
-    # response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)  # Redirect ke halaman utama setelah login
-    # response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)  # Simpan token di cookie
-    # return response
-    return {"access_token": token, "token_type": "bearer"}
+    user = await User.get(username=request_form.username)
+
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)
+    response.set_cookie(key="Username", value=user.username, httponly=True)
+    return response
+
+    # return {"access_token": token, "token_type": "bearer"}
 
 @post_save(User)
 async def create_business(
@@ -99,18 +112,57 @@ async def email_verification(request: Request, token: str):
         )
 
 
-async def get_current_user(token: str = Depends(oath2_scheme)):
-    try:
-        payload = jwt.decode(token, config_credentials['SECRET'], algorithms = ['HS256'])
-        user = await User.get(id = payload.get("id"))
-    except:
+# async def get_current_user(token: str = Depends(oath2_scheme)):
+#     try:
+#         payload = jwt.decode(token, config_credentials['SECRET'], algorithms=['HS256'])
+#         user_id = payload.get("id")
+#         user = await User.get(id=user_id)
+#         return user
+        
+#     except jwt.ExpiredSignatureError:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Token has expired",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+#     except jwt.PyJWTError:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid token",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+
+async def get_current_user(request: Request):
+    token = request.cookies.get("Authorization")  # Ambil token dari cookie
+    
+    if token is None:
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED, 
-            detail = "Invalid username or password",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = token.split(" ")[1]  # Buang "Bearer" dan ambil hanya tokennya
+    
+    try:
+        payload = jwt.decode(token, config_credentials['SECRET'], algorithms=['HS256'])
+        user_id = payload.get("id")
+        user = await User.get(id=user_id)
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return await user
+
 
 @app.post('/user/me')
 async def user_login(user: user_pydantic = Depends(get_current_user)):
@@ -136,11 +188,13 @@ async def logout(request: Request):
     response.delete_cookie("Authorization")  # Menghapus cookie token
     return response
 
-
-
 @app.get('/contact', response_class=HTMLResponse)
 async def contact_page(request: Request):
-    return templates.TemplateResponse("contact.html", {"request": request})
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
+    return templates.TemplateResponse("contact.html", {"request": request, "username": username, "id_user": id_user})
 
 
 @app.get("/categories")
@@ -219,21 +273,23 @@ async def get_products():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
-    token = request.cookies.get("Authorization")  # Mengambil token dari cookie
-    if token:
-        user = await get_current_user(token.split(" ")[1])  # Mengambil user dari token
-        username = user.username
-    else:
-        username = None
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     
     # Mengambil 6 produk dari database sebagai objek model ORM
     products = await Product.all().limit(6).order_by("id")
     products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
     
-    return templates.TemplateResponse("index.html", {"request": request, "products": products_data, "username": username})
+    return templates.TemplateResponse("index.html", {"request": request, "products": products_data, "username": username, "id_user": id_user})
 
 @app.get("/products-page", response_class=HTMLResponse)
 async def products_page(request: Request, page: int = 1, id_category: int = None):
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     per_page = 6
     start = (page - 1) * per_page
     end = start + per_page
@@ -253,12 +309,14 @@ async def products_page(request: Request, page: int = 1, id_category: int = None
     return templates.TemplateResponse(
         "products.html", 
         {
-            "request": request, 
+            "request": request,
+            "username": username,
             "products": products_data, 
             "page": page, 
             "total_pages": total_pages, 
             "categories": categories, 
-            "selected_category": id_category  # Untuk mengetahui kategori yang dipilih
+            "selected_category": id_category,  # Untuk mengetahui kategori yang dipilih
+            "id_user": id_user
         }
     )
 
@@ -311,6 +369,10 @@ async def delete_product(id: int, user: user_pydantic = Depends(get_current_user
 
 @app.get("/products-detail/{id}", response_class=HTMLResponse)
 async def product_detail(request: Request, id: int):
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     try:
         product = await Product.get(id=id)
     except DoesNotExist:
@@ -326,10 +388,12 @@ async def product_detail(request: Request, id: int):
         "product-detail.html", 
         {
             "request": request,
+            "username": username,
             "product": product,
             "business": business,
             "owner": owner,
-            "category": category
+            "category": category,
+            "id_user": id_user
         }
     )
 
@@ -376,6 +440,10 @@ async def get_reseps():
 
 @app.get("/reseps-page", response_class=HTMLResponse)
 async def reseps_page(request: Request, page: int = 1):
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     per_page = 6  # Jumlah item per halaman
     start = (page - 1) * per_page
     end = start + per_page
@@ -393,14 +461,20 @@ async def reseps_page(request: Request, page: int = 1):
         "resep.html",
         {
             "request": request,
+            "username": username,
             "reseps": reseps_data,
             "page": page,
             "total_pages": total_pages,
+            "id_user": id_user
         }
     )
 
 @app.get("/reseps-detail/{id}", response_class=HTMLResponse)
 async def resep_detail(request: Request, id: int):
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     try:
         resep = await Resep.get(id=id)
     except DoesNotExist:
@@ -410,7 +484,9 @@ async def resep_detail(request: Request, id: int):
         "resep-detail.html",
         {
             "request": request,
+            "username": username,
             "resep": resep,
+            "id_user": id_user
         }
     )
 
@@ -458,12 +534,14 @@ async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_c
 
     return {"status": "ok", "data": await beli_pydantic.from_tortoise_orm(beli_obj)}
 
-@app.get("/belis/me")
-async def get_my_belis(user: user_pydantic = Depends(get_current_user)):
-    # Retrieve all Beli entries for the currently logged in user
+@app.get("/belis/me", response_class=HTMLResponse)
+async def get_my_belis(request: Request):
+    user = await get_current_user(request)
+    username = user.username
+    id_user = user.id
+
     belis = await Beli.filter(user=user).select_related('product')
 
-    # Prepare list of beli data along with product details
     beli_list = []
     for beli in belis:
         product = beli.product
@@ -477,13 +555,25 @@ async def get_my_belis(user: user_pydantic = Depends(get_current_user)):
                 "original_price": product.original_price,
                 "new_price": product.new_price,
                 "percentage_discount": product.percentage_discount,
-                "product_description": product.product_description
+                "product_description": product.product_description,
+                "product_image": product.product_image,
             }
         }
         beli_list.append(beli_data)
+    
+    username = user.username
 
-    return {"status": "ok", "data": beli_list}  # Kembalikan struktur dictionary
-
+    response = templates.TemplateResponse(
+        "beli.html",
+        {
+            "request": request,
+            "beli_list": beli_list,
+            "username": username,
+            "id_user": id_user
+        }
+    )
+    # response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)
+    return response
 
 @app.get("/belis/{id_beli}")
 async def get_beli_by_id(id_beli: int):
