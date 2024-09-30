@@ -111,36 +111,12 @@ async def email_verification(request: Request, token: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-
-# async def get_current_user(token: str = Depends(oath2_scheme)):
-#     try:
-#         payload = jwt.decode(token, config_credentials['SECRET'], algorithms=['HS256'])
-#         user_id = payload.get("id")
-#         user = await User.get(id=user_id)
-#         return user
-        
-#     except jwt.ExpiredSignatureError:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Token has expired",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     except jwt.PyJWTError:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Invalid token",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-
 async def get_current_user(request: Request):
     token = request.cookies.get("Authorization")  # Ambil token dari cookie
     
     if token is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # Token is not present, return None or handle it differently
+        return None  # You can return None or a specific user object, depending on your flow
     
     token = token.split(" ")[1]  # Buang "Bearer" dan ambil hanya tokennya
     
@@ -161,7 +137,6 @@ async def get_current_user(request: Request):
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
 
 
 @app.post('/user/me')
@@ -274,10 +249,14 @@ async def get_products():
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
     user = await get_current_user(request)
+    
+    # Check if user is None and handle the login logic
+    if user is None:
+        return templates.TemplateResponse("index.html", {"request": request, "products": [], "username": None, "id_user": None})
+    
     username = user.username
     id_user = user.id
 
-    
     # Mengambil 6 produk dari database sebagai objek model ORM
     products = await Product.all().limit(6).order_by("id")
     products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
@@ -574,6 +553,15 @@ async def get_my_belis(request: Request):
     )
     # response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)
     return response
+
+@app.delete("/belis/{beli_id}/hapus")
+async def hapus_beli(beli_id: int, current_user: User = Depends(get_current_user)):
+    beli = await Beli.get(id=beli_id, user_id=current_user.id)
+    if not beli:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
+    await beli.delete()
+    return {"status": "ok"}
+
 
 @app.get("/belis/{id_beli}")
 async def get_beli_by_id(id_beli: int):
