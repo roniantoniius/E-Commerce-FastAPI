@@ -166,6 +166,10 @@ async def logout(request: Request):
 @app.get('/contact', response_class=HTMLResponse)
 async def contact_page(request: Request):
     user = await get_current_user(request)
+
+    if user is None:
+        return templates.TemplateResponse("contact.html", {"request": request, "username": None, "id_user": None})
+    
     username = user.username
     id_user = user.id
 
@@ -248,27 +252,29 @@ async def get_products():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
+    # Mengambil 6 produk dari database sebagai objek model ORM
+    products = await Product.all().limit(6).order_by("id")
+    products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
+
     user = await get_current_user(request)
     
     # Check if user is None and handle the login logic
     if user is None:
-        return templates.TemplateResponse("index.html", {"request": request, "products": [], "username": None, "id_user": None})
+        return templates.TemplateResponse("index.html", {"request": request,
+                                                         "products": products_data,
+                                                         "username": None,
+                                                         "id_user": None})
     
     username = user.username
     id_user = user.id
-
-    # Mengambil 6 produk dari database sebagai objek model ORM
-    products = await Product.all().limit(6).order_by("id")
-    products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]  # Proses per item
     
-    return templates.TemplateResponse("index.html", {"request": request, "products": products_data, "username": username, "id_user": id_user})
+    return templates.TemplateResponse("index.html", {"request": request,
+                                                     "products": products_data,
+                                                     "username": username,
+                                                     "id_user": id_user})
 
 @app.get("/products-page", response_class=HTMLResponse)
 async def products_page(request: Request, page: int = 1, id_category: int = None):
-    user = await get_current_user(request)
-    username = user.username
-    id_user = user.id
-
     per_page = 6
     start = (page - 1) * per_page
     end = start + per_page
@@ -285,6 +291,22 @@ async def products_page(request: Request, page: int = 1, id_category: int = None
     products_data = [await product_pydantic.from_tortoise_orm(product) for product in products]
 
     categories = await Category.all()  # Untuk daftar kategori pada sidebar filter
+
+    user = await get_current_user(request)
+
+    if user is None:
+        return templates.TemplateResponse("products.html", {"request": request,
+                                                            "username": None,
+                                                            "id_user": None,
+                                                            "products": products_data,
+                                                            "page": page,
+                                                            "total_pages": total_pages,
+                                                            "categories": categories,
+                                                            "selected_category": id_category})
+    
+    username = user.username
+    id_user = user.id
+
     return templates.TemplateResponse(
         "products.html", 
         {
@@ -348,10 +370,6 @@ async def delete_product(id: int, user: user_pydantic = Depends(get_current_user
 
 @app.get("/products-detail/{id}", response_class=HTMLResponse)
 async def product_detail(request: Request, id: int):
-    user = await get_current_user(request)
-    username = user.username
-    id_user = user.id
-
     try:
         product = await Product.get(id=id)
     except DoesNotExist:
@@ -361,6 +379,20 @@ async def product_detail(request: Request, id: int):
     business = await product.business
     owner = await business.owner
     category = await product.category
+
+    user = await get_current_user(request)
+
+    if user is None:
+        return templates.TemplateResponse("product-detail.html", {"request": request,
+                                                            "username": None,
+                                                            "id_user": None,
+                                                            "product": product,
+                                                            "business": business,
+                                                            "owner": owner,
+                                                            "category": category})
+    
+    username = user.username
+    id_user = user.id
 
     # Return halaman detail produk dengan data produk
     return templates.TemplateResponse(
@@ -493,6 +525,26 @@ class BeliInput(BaseModel):
     produk_id: int
     kuantitas: int
 
+# @app.post("/belis")
+# async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_current_user)):
+#     # Retrieve product by ID
+#     produk = await Product.get(id=beli_input.produk_id)
+#     if not produk:
+#         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+
+#     # Calculate harga_total
+#     harga_total = produk.new_price * beli_input.kuantitas
+
+#     # Create new Beli object
+#     beli_obj = await Beli.create(
+#         user_id=user.id,
+#         product_id=produk.id,
+#         kuantitas=beli_input.kuantitas,
+#         harga_total=harga_total
+#     )
+
+#     return {"status": "ok", "data": await beli_pydantic.from_tortoise_orm(beli_obj)}
+
 @app.post("/belis")
 async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_current_user)):
     # Retrieve product by ID
@@ -516,6 +568,14 @@ async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_c
 @app.get("/belis/me", response_class=HTMLResponse)
 async def get_my_belis(request: Request):
     user = await get_current_user(request)
+
+    if user is None:
+        return templates.TemplateResponse("beli.html", {
+            "request": request, 
+            "username": None, 
+            "id_user": None
+        })
+
     username = user.username
     id_user = user.id
 
@@ -551,7 +611,6 @@ async def get_my_belis(request: Request):
             "id_user": id_user
         }
     )
-    # response.set_cookie(key="Authorization", value=f"Bearer {token}", httponly=True)
     return response
 
 @app.delete("/belis/{beli_id}/hapus")
@@ -702,48 +761,6 @@ async def get_transaksi_by_id(id_transaksi: int, user: user_pydantic = Depends(g
 
     return {"status": "ok", "data": transaksi_data}
 
-
-# image upload
-@app.post("/uploadfile/profile")
-async def create_upload_file(file: UploadFile = File(...), user: user_pydantic = Depends(get_current_user)):
-    FILEPATH = "./static/images/"
-    filename = file.filename
-    extension = filename.split(".")[1]
-
-    if extension not in ["jpg", "png"]:
-        return {"status" : "error", "detail" : "file extension not allowed"}
-
-    token_name = secrets.token_hex(10)+"."+extension
-    generated_name = FILEPATH + token_name
-    file_content = await file.read()
-    with open(generated_name, "wb") as file:
-        file.write(file_content)
-
-    img = Image.open(generated_name)
-    img = img.resize(size = (200,200))
-    img.save(generated_name)
-
-    file.close()
-
-    business = await Business.get(owner = user)
-    owner = await business.owner
-
-    print(user.id)
-    print(owner.id)
-    if owner == user:
-        business.logo = token_name
-        await business.save()
-    
-    else:
-        raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED, 
-            detail = "Not authenticated to perform this action",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    file_url = "localhost:8000" + generated_name[1:]
-    return {"status": "ok", "filename": file_url}
-
-
 @app.post("/uploadfile/product/{id}")
 async def create_upload_file(id: int, file: UploadFile = File(...), user: user_pydantic = Depends(get_current_user)):
     FILEPATH = "./static/images/"
@@ -779,36 +796,6 @@ async def create_upload_file(id: int, file: UploadFile = File(...), user: user_p
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-
-    file_url = "localhost:8000" + generated_name[1:]
-    return {"status": "ok", "filename": file_url}
-
-@app.post("/uploadfile/resep/{id}")
-async def upload_resep_image(id: int, file: UploadFile = File(...), user: user_pydantic = Depends(get_current_user)):
-    FILEPATH = "./static/images/"
-    filename = file.filename
-    extension = filename.split(".")[1]
-
-    if extension not in ["jpg", "png"]:
-        return {"status": "error", "detail": "File extension not allowed"}
-
-    token_name = secrets.token_hex(10) + "." + extension
-    generated_name = FILEPATH + token_name
-    file_content = await file.read()
-    with open(generated_name, "wb") as file:
-        file.write(file_content)
-
-    img = Image.open(generated_name)
-    img = img.resize(size=(200, 200))
-    img.save(generated_name)
-
-    file.close()
-
-    resep = await Resep.get(id=id)
-    
-    # Implement ownership check if needed (e.g., check if the user has permission to upload an image for this recipe)
-    resep.gambar_resep = token_name
-    await resep.save()
 
     file_url = "localhost:8000" + generated_name[1:]
     return {"status": "ok", "filename": file_url}
