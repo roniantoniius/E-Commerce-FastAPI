@@ -1,0 +1,47 @@
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding: 15px 0;
+}
+
+.cart-item img {
+    max-width: 100px;
+    height: auto;
+}
+
+.cart-item h5 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.cart-item .delete-icon {
+    cursor: pointer;
+}
+
+.cart-item .col-md-6 {
+    display: flex;
+    align-items: center;
+}
+
+.cart-item .col-md-6 .mr-3 {
+    margin-right: 15px; /* Adjust the spacing between elements */
+}
+
+.flex-grow-1 {
+    flex-grow: 1; /* Ensures that this div takes up remaining space */
+}
+
+.delete-icon {
+    cursor: pointer;
+}
+
+.cart-item p {
+    margin: 0;
+}
+
+.cart-item hr {
+    width: 100%;
+    border-top: 1px solid #ddd;
+}
