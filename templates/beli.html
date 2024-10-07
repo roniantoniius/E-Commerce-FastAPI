@@ -5,7 +5,8 @@
     {% block content %}
     <div class="container mt-4">
         <br>
-        <h2 style="text-align: center;">Daftar Belanja Anda, {{ username }}</h2>
+        <h1 style="text-align: center;">Daftar Belanja Anda, {{ username }}</h1>
+        <br>
         <div id="cart-items">
             {% if not username %}
             <!-- Trigger SweetAlert2 if the user is not logged in -->
@@ -21,50 +22,65 @@
                         allowEscapeKey: false
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            // Force a page reload to go to login
                             window.location.href = "/";
                         }
                     });
                 });
             </script>
             {% else %}
-            <div class="total-price-container">
-                <h4>Total Harga: <span id="total-price">Rp 0</span></h4>
-            </div>
-            {% for beli in beli_list %}
-            <div class="cart-item row mb-3 align-items-center" id="cart-item-{{ beli.beli_id }}">
-                <!-- First 6 columns (icon, image, product details) -->
-                <div class="col-md-6 d-flex align-items-center">
-                    <!-- Delete icon -->
-                    <div class="mr-3">
-                        <a href="javascript:void(0);" onclick="confirmDelete({{ beli.beli_id }}, '{{ beli.product.name }}', '{{ beli.beli_id }}')">
-                            <img src="/static/images/wrong-svgrepo-com.svg" alt="Hapus" class="delete-icon" style="height: 30px; width: 30px;">
-                        </a>
-                    </div>
-                
-                    <!-- Product image -->
-                    <div class="mr-3">
-                        <img src="/static/images/{{ beli.product.product_image }}" class="img-fluid" alt="{{ beli.product.name }}" style="max-height: 100px;">
-                    </div>
-                
-                    <!-- Product name and quantity (flex-grow for filling remaining space) -->
-                    <div class="flex-grow-1">
-                        <h5>{{ beli.product.name }}</h5>
-                        <p>Kuantitas (items): <strong>{{ beli.kuantitas }}</strong></p>
+            <div class="accordion" id="accordionExample">
+                <div class="accordion-item">
+                    <h1 class="accordion-header" id="headingOne" style="background-color: white; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+                        <button class="accordion-button d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne" style="background-color: white; box-shadow: none;">
+                            <img src="{{ url_for('static', path='images/logo putih omega-no bg.png') }}" alt="logo" class="mb-logo" style="width: 200px; height: auto;">
+                            <h4 class="fw-bold" style="flex-grow: 1; text-align: right; font-weight: bold;">Total Harga: <span id="total-price">Rp 0</span></h4>
+
+                        </button>
+                    </h1>
+                    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                        <div class="accordion-body">
+                            
+
+                            <!-- Loop through beli_list items -->
+                            {% for beli in beli_list %}
+                            <div class="cart-item row mb-3 align-items-center" id="cart-item-{{ beli.beli_id }}">
+                                <div class="col-md-6 d-flex align-items-center">
+                                    <!-- Delete icon -->
+                                    <div class="mr-3">
+                                        <a href="javascript:void(0);" onclick="confirmDelete({{ beli.beli_id }}, '{{ beli.product.name }}', '{{ beli.beli_id }}')">
+                                            <img src="/static/images/wrong-svgrepo-com.svg" alt="Hapus" class="delete-icon" style="height: 30px; width: 30px;">
+                                        </a>
+                                    </div>
+                                
+                                    <!-- Product image -->
+                                    <div class="mr-3">
+                                        <img src="/static/images/{{ beli.product.product_image }}" class="img-fluid" alt="{{ beli.product.name }}" style="max-height: 100px;">
+                                    </div>
+                                
+                                    <!-- Product name and quantity -->
+                                    <div class="flex-grow-1">
+                                        <h5>{{ beli.product.name }}</h5>
+                                        <p>Kuantitas (items): <strong>{{ beli.kuantitas }}</strong></p>
+                                    </div>
+                                </div>
+                            
+                                <!-- Price section -->
+                                <div class="col-md-6 text-right">
+                                    <h5>Rp {{ beli.harga_total }}</h5>
+                                </div>
+                            </div>
+                            <hr>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
-            
-                <!-- Last 6 columns (price) -->
-                <div class="col-md-6 text-right">
-                    <h5>Rp {{ beli.harga_total }}</h5>
-                </div>
             </div>
-            <hr>
-            {% endfor %}
+            <br>
             {% endif %}
         </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         async function fetchBelis() {
             try {
