@@ -112,13 +112,12 @@ async def email_verification(request: Request, token: str):
         )
 
 async def get_current_user(request: Request):
-    token = request.cookies.get("Authorization")  # Ambil token dari cookie
+    token = request.cookies.get("Authorization")
     
     if token is None:
-        # Token is not present, return None or handle it differently
-        return None  # You can return None or a specific user object, depending on your flow
+        return None
     
-    token = token.split(" ")[1]  # Buang "Bearer" dan ambil hanya tokennya
+    token = token.split(" ")[1]
     
     try:
         payload = jwt.decode(token, config_credentials['SECRET'], algorithms=['HS256'])
@@ -525,26 +524,6 @@ class BeliInput(BaseModel):
     produk_id: int
     kuantitas: int
 
-# @app.post("/belis")
-# async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_current_user)):
-#     # Retrieve product by ID
-#     produk = await Product.get(id=beli_input.produk_id)
-#     if not produk:
-#         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
-
-#     # Calculate harga_total
-#     harga_total = produk.new_price * beli_input.kuantitas
-
-#     # Create new Beli object
-#     beli_obj = await Beli.create(
-#         user_id=user.id,
-#         product_id=produk.id,
-#         kuantitas=beli_input.kuantitas,
-#         harga_total=harga_total
-#     )
-
-#     return {"status": "ok", "data": await beli_pydantic.from_tortoise_orm(beli_obj)}
-
 @app.post("/belis")
 async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_current_user)):
     # Retrieve product by ID
@@ -613,15 +592,6 @@ async def get_my_belis(request: Request):
     )
     return response
 
-@app.delete("/belis/{beli_id}/hapus")
-async def hapus_beli(beli_id: int, current_user: User = Depends(get_current_user)):
-    beli = await Beli.get(id=beli_id, user_id=current_user.id)
-    if not beli:
-        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
-    await beli.delete()
-    return {"status": "ok"}
-
-
 @app.get("/belis/{id_beli}")
 async def get_beli_by_id(id_beli: int):
     # Retrieve Beli by ID
@@ -666,16 +636,16 @@ async def get_belis(user: user_pydantic = Depends(get_current_user)):
     belis = await Beli.filter(user=user).select_related('product')
     return belis
 
-@app.delete("/belis/{id_beli}")
-async def delete_beli(id_beli: int):
-    # Retrieve Beli by ID
-    beli = await Beli.get(id_beli=id_beli)
-    if not beli:
-        raise HTTPException(status_code=404, detail="Beli tidak ditemukan")
 
-    # Delete the Beli
+@app.delete("/belis/{beli_id}/hapus")
+async def hapus_beli(beli_id: int,
+                     current_user: User = Depends(get_current_user)):
+    beli = await Beli.get(id_beli=beli_id, user_id=current_user.id)
+    if not beli:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
+    
     await beli.delete()
-    return {"status": "ok", "message": "Beli berhasil dihapus"}
+    return {"status": "ok"}
 
 class TransaksiInput(BaseModel):
     total: float
@@ -699,6 +669,51 @@ async def create_transaksi(transaksi_input: TransaksiInput,
 
     return {"status": "ok",
             "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj)}
+
+@app.get("/transaksis/me", response_class=HTMLResponse)
+async def get_my_transaksis(request: Request):
+    user = await get_current_user(request)
+
+    if user is None:
+        return templates.TemplateResponse("daftar-transaksi.html", {
+            "request": request,
+            "username": None,
+            "id_user": None
+        })
+
+    username = user.username
+    id_user = user.id
+
+    # Ambil transaksi dan prefetch related belis dan product
+    transaksis = await Transaksi.filter(user=user).prefetch_related('belis__product')
+
+    transaksi_list = []
+    for transaksi in transaksis:
+        # Tidak perlu memanggil await transaksi.belis.all(), karena belis sudah diprefetch
+        belis = transaksi.belis  # Ini sudah bisa langsung diakses
+        
+        # Menggunakan list comprehension untuk mendapatkan nama produk
+        products = ", ".join([beli.product.name for beli in belis]) if belis else "No Products"
+        
+        transaksi_data = {
+            "id_transaksi": transaksi.id_transaksi,
+            "products": products,
+            "total": transaksi.total,
+            "status": "Completed" if transaksi.status else "Pending"
+        }
+        transaksi_list.append(transaksi_data)
+
+    response = templates.TemplateResponse(
+        "daftar-transaksi.html",
+        {
+            "request": request,
+            "transaksi_list": transaksi_list,
+            "username": username,
+            "id_user": id_user
+        }
+    )
+    return response
+
 
 @app.get("/transaksis", response_model=List[transaksi_pydantic])
 async def get_transaksis(user: user_pydantic = Depends(get_current_user)):
@@ -838,6 +853,8 @@ async def upload_resep_image(id: int, file: UploadFile = File(...), user: user_p
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Resep not found",
         )
+
+
 
 register_tortoise(
     app,
