@@ -544,9 +544,9 @@ async def create_beli(beli_input: BeliInput, user: user_pydantic = Depends(get_c
 
     return {"status": "ok", "data": await beli_pydantic.from_tortoise_orm(beli_obj)}
 
-@app.get("/belis/me", response_class=HTMLResponse)
-async def get_my_belis(request: Request):
-    user = await get_current_user(request)
+@app.get("/belis/{username}", response_class=HTMLResponse)
+async def get_my_belis(request: Request, username: str):
+    user = await User.filter(username=username).first()
 
     if user is None:
         return templates.TemplateResponse("beli.html", {
@@ -555,7 +555,6 @@ async def get_my_belis(request: Request):
             "id_user": None
         })
 
-    username = user.username
     id_user = user.id
 
     belis = await Beli.filter(user=user).select_related('product')
@@ -670,31 +669,28 @@ async def create_transaksi(transaksi_input: TransaksiInput,
     return {"status": "ok",
             "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj)}
 
-@app.get("/transaksis/me", response_class=HTMLResponse)
-async def get_my_transaksis(request: Request):
-    user = await get_current_user(request)
+@app.get("/transaksis/{username}", response_class=HTMLResponse)
+async def get_my_transaksis(request: Request, username: str):
+    user = await User.filter(username=username).first()
 
     if user is None:
+
         return templates.TemplateResponse("daftar-transaksi.html", {
             "request": request,
             "username": None,
             "id_user": None
         })
 
-    username = user.username
     id_user = user.id
 
-    # Ambil transaksi dan prefetch related belis dan product
+    # Ambil transaksi berdasarkan user
     transaksis = await Transaksi.filter(user=user).prefetch_related('belis__product')
 
     transaksi_list = []
     for transaksi in transaksis:
-        # Tidak perlu memanggil await transaksi.belis.all(), karena belis sudah diprefetch
-        belis = transaksi.belis  # Ini sudah bisa langsung diakses
-        
-        # Menggunakan list comprehension untuk mendapatkan nama produk
+        belis = transaksi.belis
         products = ", ".join([beli.product.name for beli in belis]) if belis else "No Products"
-        
+
         transaksi_data = {
             "id_transaksi": transaksi.id_transaksi,
             "products": products,
@@ -703,6 +699,7 @@ async def get_my_transaksis(request: Request):
         }
         transaksi_list.append(transaksi_data)
 
+    # Render template dengan informasi transaksi
     response = templates.TemplateResponse(
         "daftar-transaksi.html",
         {
