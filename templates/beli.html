@@ -5,7 +5,7 @@
     {% block content %}
     <div class="container mt-4">
         <br>
-        <h1 style="text-align: center;">Daftar Belanja Anda, {{ username }}</h1>
+        <h1 style="text-align: center;">Daftar Belanja Anda, <strong>{{ username }}</strong></h1>
         <br>
         <div id="cart-items">
             {% if not username %}
@@ -32,7 +32,7 @@
                     <h1 class="accordion-header" id="headingOne" style="background-color: white; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
                         <button class="accordion-button d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne" style="background-color: white; box-shadow: none;">
                             <img src="{{ url_for('static', path='images/logo putih omega-no bg.png') }}" alt="logo" class="mb-logo" style="width: 200px; height: auto;">
-                            <h4 class="fw-bold" style="flex-grow: 1; text-align: right; font-weight: bold;">Total Harga: <span id="total-price">Rp 0</span></h4>
+                            <h4 class="fw-bold" style="flex-grow: 1; text-align: right; font-weight: bold; padding-right: 10px;">Total Harga: <span id="total-price">Rp 0</span></h4>
 
                         </button>
                     </h1>
@@ -161,7 +161,6 @@
                 return;
             }
         
-            // Menggunakan Swal untuk konfirmasi sebelum pengiriman
             Swal.fire({
                 title: 'Konfirmasi Transaksi',
                 text: `Apakah Anda yakin ingin melanjutkan pembelian dengan total Rp ${totalValue.toLocaleString('id-ID')}?`,
@@ -171,13 +170,12 @@
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Jika pengguna mengonfirmasi, kirim data dengan fetch API
                     fetch('/transaksis', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        credentials: 'include', // Sertakan cookie untuk autentikasi
+                        credentials: 'include',
                         body: JSON.stringify({
                             total: totalValue
                         })
@@ -190,7 +188,6 @@
                     })
                     .then(data => {
                         if (data.status === "ok") {
-                            // Redirect ke halaman /transaksis/{username}
                             window.location.href = `/transaksis/${data.username}`;
                         } else {
                             console.error("Gagal membuat transaksi: ", data.message);
@@ -210,7 +207,6 @@
                         });
                     });
                 } else {
-                    // Jika pengguna membatalkan, tidak lakukan apapun
                     Swal.fire({
                         title: 'Dibatalkan',
                         text: 'Transaksi dibatalkan.',
@@ -245,20 +241,17 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        credentials: 'include'  // Sertakan cookies seperti token untuk autentikasi
+                        credentials: 'include'
                     });
                 
-                    // Periksa response status code atau response.ok
                     if (!response.ok) {
                         console.error(`Gagal menghapus item. Status code: ${response.status}`);
                         throw new Error('Gagal menghapus item.');
                     }
                 
-                    // Pastikan responsnya memiliki data yang valid atau kosong
                     const result = await response.json().catch(() => ({}));
                     console.log("Respons penghapusan: ", result);
                 
-                    // Jika semuanya OK, hapus item dari DOM
                     document.getElementById(`cart-item-${beliId}`).remove();
                     Swal.fire(
                         'Terhapus!',
@@ -286,7 +279,6 @@
               text: 'You have clicked the Midtrans payment button.',
               icon: 'info'
             });
-            // logic here
           });
         });
 
