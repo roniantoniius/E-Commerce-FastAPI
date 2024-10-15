@@ -135,6 +135,10 @@
                             title: 'Berhasil',
                             text: 'Produk berhasil dibeli!',
                             confirmButtonColor: '#3085d6'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = "/belis/{{ username }}";
+                            }
                         });
                     } else {
                         Swal.fire({
