@@ -5,7 +5,7 @@ from tortoise.exceptions import DoesNotExist
 from models import (User, Business, Product, user_pydantic, user_pydanticIn,
                     product_pydantic, product_pydanticIn, business_pydantic,
                     business_pydanticIn, user_pydanticOut, Resep, resep_pydantic, resep_pydanticIn, Category, category_pydantic, category_pydanticIn, Beli, beli_pydantic, beli_pydanticIn,
-                    Transaksi, transaksi_pydantic, transaksi_pydanticIn)
+                    Transaksi, transaksi_pydantic, transaksi_pydanticIn, TransaksiDetail)
 from tortoise.signals import  post_save 
 from typing import List, Optional, Type
 from tortoise import BaseDBAsyncClient, Model
@@ -33,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from tortoise.transactions import in_transaction
+import json
 
 config_credentials = dict(dotenv_values(".env"))
 
@@ -167,12 +168,12 @@ async def contact_page(request: Request):
     user = await get_current_user(request)
 
     if user is None:
-        return templates.TemplateResponse("contact.html", {"request": request, "username": None, "id_user": None})
+        return templates.TemplateResponse("contact.jinja", {"request": request, "username": None, "id_user": None})
     
     username = user.username
     id_user = user.id
 
-    return templates.TemplateResponse("contact.html", {"request": request, "username": username, "id_user": id_user})
+    return templates.TemplateResponse("contact.jinja", {"request": request, "username": username, "id_user": id_user})
 
 
 @app.get("/categories")
@@ -249,6 +250,11 @@ async def get_products():
     response = await product_pydantic.from_queryset(Product.all())
     return {"status": "ok", "data": response}
 
+@app.get("/search")
+async def search_products(query: str = Query(...)):
+    response = await product_pydantic.from_queryset(Product.filter(name__icontains=query))
+    return {"status": "ok", "data": response}
+
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
     # Mengambil 6 produk dari database sebagai objek model ORM
@@ -259,7 +265,7 @@ async def read_index(request: Request):
     
     # Check if user is None and handle the login logic
     if user is None:
-        return templates.TemplateResponse("index.html", {"request": request,
+        return templates.TemplateResponse("index.jinja", {"request": request,
                                                          "products": products_data,
                                                          "username": None,
                                                          "id_user": None})
@@ -267,7 +273,7 @@ async def read_index(request: Request):
     username = user.username
     id_user = user.id
     
-    return templates.TemplateResponse("index.html", {"request": request,
+    return templates.TemplateResponse("index.jinja", {"request": request,
                                                      "products": products_data,
                                                      "username": username,
                                                      "id_user": id_user})
@@ -294,7 +300,7 @@ async def products_page(request: Request, page: int = 1, id_category: int = None
     user = await get_current_user(request)
 
     if user is None:
-        return templates.TemplateResponse("products.html", {"request": request,
+        return templates.TemplateResponse("products.jinja", {"request": request,
                                                             "username": None,
                                                             "id_user": None,
                                                             "products": products_data,
@@ -307,7 +313,7 @@ async def products_page(request: Request, page: int = 1, id_category: int = None
     id_user = user.id
 
     return templates.TemplateResponse(
-        "products.html", 
+        "products.jinja", 
         {
             "request": request,
             "username": username,
@@ -382,7 +388,7 @@ async def product_detail(request: Request, id: int):
     user = await get_current_user(request)
 
     if user is None:
-        return templates.TemplateResponse("product-detail.html", {"request": request,
+        return templates.TemplateResponse("product-detail.jinja", {"request": request,
                                                             "username": None,
                                                             "id_user": None,
                                                             "product": product,
@@ -395,7 +401,7 @@ async def product_detail(request: Request, id: int):
 
     # Return halaman detail produk dengan data produk
     return templates.TemplateResponse(
-        "product-detail.html", 
+        "product-detail.jinja", 
         {
             "request": request,
             "username": username,
@@ -466,9 +472,8 @@ async def reseps_page(request: Request, page: int = 1):
     total_pages = (total_reseps + per_page - 1) // per_page
     reseps_data = [await resep_pydantic.from_tortoise_orm(resep) for resep in reseps]
 
-    # Kirim ke template resep.html
     return templates.TemplateResponse(
-        "resep.html",
+        "resep.jinja",
         {
             "request": request,
             "username": username,
@@ -491,7 +496,7 @@ async def resep_detail(request: Request, id: int):
         raise HTTPException(status_code=404, detail="Resep was not found")
     
     return templates.TemplateResponse(
-        "resep-detail.html",
+        "resep-detail.jinja",
         {
             "request": request,
             "username": username,
@@ -549,7 +554,7 @@ async def get_my_belis(request: Request, username: str):
     user = await User.filter(username=username).first()
 
     if user is None:
-        return templates.TemplateResponse("beli.html", {
+        return templates.TemplateResponse("beli.jinja", {
             "request": request, 
             "username": None, 
             "id_user": None
@@ -581,7 +586,7 @@ async def get_my_belis(request: Request, username: str):
     username = user.username
 
     response = templates.TemplateResponse(
-        "beli.html",
+        "beli.jinja",
         {
             "request": request,
             "beli_list": beli_list,
@@ -649,33 +654,63 @@ async def hapus_beli(beli_id: int,
 class TransaksiInput(BaseModel):
     total: float
 
+# @app.post("/transaksis")
+# async def create_transaksi(transaksi_input: TransaksiInput,
+#                            user: user_pydantic = Depends(get_current_user)):
+    
+#     belis = await Beli.filter(user=user).select_related('product')
+#     if not belis:
+#         raise HTTPException(status_code=404, detail="Tidak ada beli yang ditemukan")
+    
+#     transaksi_obj = await Transaksi.create(
+#         user_id=user.id,
+#         total=transaksi_input.total,
+#     )
+
+#     for beli in belis:
+#         await transaksi_obj.belis.add(beli)
+
+
+#     return {
+#         "status": "ok",
+#         "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj),
+#         "username": user.username
+#     }
+
 @app.post("/transaksis")
 async def create_transaksi(transaksi_input: TransaksiInput,
-                           user: user_pydantic = Depends(get_current_user)):
+                            user: user_pydantic = Depends(get_current_user)):
     
     belis = await Beli.filter(user=user).select_related('product')
     if not belis:
         raise HTTPException(status_code=404, detail="Tidak ada beli yang ditemukan")
-    
-    # transaksi baru objek
+
     transaksi_obj = await Transaksi.create(
-        user_id = user.id,
-        total = transaksi_input.total,
+        user_id=user.id,
+        total=transaksi_input.total,
     )
 
     for beli in belis:
-        await transaksi_obj.belis.add(beli)
+        await TransaksiDetail.create(
+            transaksi=transaksi_obj,
+            product=beli.product,
+            kuantitas=beli.kuantitas,
+            harga_total=beli.harga_total,
+        )
 
-    return {"status": "ok",
-            "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj)}
+    return {
+        "status": "ok",
+        "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj),
+        "username": user.username
+    }
+
 
 @app.get("/transaksis/{username}", response_class=HTMLResponse)
 async def get_my_transaksis(request: Request, username: str):
     user = await User.filter(username=username).first()
 
     if user is None:
-
-        return templates.TemplateResponse("daftar-transaksi.html", {
+        return templates.TemplateResponse("daftar-transaksi.jinja", {
             "request": request,
             "username": None,
             "id_user": None
@@ -683,13 +718,12 @@ async def get_my_transaksis(request: Request, username: str):
 
     id_user = user.id
 
-    # Ambil transaksi berdasarkan user
-    transaksis = await Transaksi.filter(user=user).prefetch_related('belis__product')
+    transaksis = await Transaksi.filter(user=user).prefetch_related('details__product')
 
     transaksi_list = []
     for transaksi in transaksis:
-        belis = transaksi.belis
-        products = ", ".join([beli.product.name for beli in belis]) if belis else "No Products"
+        details = transaksi.details
+        products = ", ".join([detail.product.name for detail in details]) if details else "No Products"
 
         transaksi_data = {
             "id_transaksi": transaksi.id_transaksi,
@@ -699,9 +733,8 @@ async def get_my_transaksis(request: Request, username: str):
         }
         transaksi_list.append(transaksi_data)
 
-    # Render template dengan informasi transaksi
     response = templates.TemplateResponse(
-        "daftar-transaksi.html",
+        "daftar-transaksi.jinja",
         {
             "request": request,
             "transaksi_list": transaksi_list,
@@ -710,6 +743,7 @@ async def get_my_transaksis(request: Request, username: str):
         }
     )
     return response
+
 
 
 @app.get("/transaksis", response_model=List[transaksi_pydantic])
