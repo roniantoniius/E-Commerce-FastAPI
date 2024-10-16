@@ -1,0 +1,257 @@
+    {% extends "base.html" %}
+
+    {% block title %}Warung Omega - Home{% endblock %}
+
+    {% block content %}
+    <!-- hero section -->
+    <div class="hero">
+        <div class="slider">
+            <div class="container">
+                <!-- slide item -->
+                <div class="slide active">
+                    <div class="info">
+                        <div class="info-content">
+                            <h2 class="top-down trans-delay-0-2">
+                                Ready to Eat!
+                            </h2>
+                            <p class="top-down trans-delay-0-4">
+                                Nikmati hidangan seafood sehat dan lezat yang siap saji, kaya akan Omega-3 yang mendukung fungsi otak dan jantung Anda.
+                            </p>
+                            <div class="top-down trans-delay-0-6">
+                                <a href="/products-page?id_category=1">
+                                    <button class="btn-flat btn-hover">pesan sekarang</button>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="img top-down">
+                        <img src="{{ url_for('static', path='images/ready to eat.png')}}" alt="">
+                    </div>
+                </div>
+                <div class="slide">
+                    <div class="info">
+                        <div class="info-content">
+                            <h2 class="top-down trans-delay-0-2">
+                                Fish - Fillets, Cutlets & Tails
+                            </h2>
+                            <p class="top-down trans-delay-0-4">
+                                Potongan ikan berkualitas premium, kaya akan protein dan lemak sehat, siap menemani diet sehat dan seimbang Anda.
+                            </p>
+                            <div class="top-down trans-delay-0-6">
+                                <a href="/products-page?id_category=1">
+                                    <button class="btn-flat btn-hover">pesan sekarang</button>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="img right-left">
+                        <img src="{{ url_for('static', path='images/fish fillet.jpg')}}" alt="">
+                    </div>
+                </div>
+                <!-- end slide item -->
+                <!-- slide item -->
+                <div class="slide">
+                    <div class="info">
+                        <div class="info-content">
+                            <h2 class="top-down trans-delay-0-2">
+                                Mussels, Bugs & Shellfish
+                            </h2>
+                            <p class="top-down trans-delay-0-4">
+                                Kerang-kerangan yang penuh nutrisi, sarat dengan zat besi dan Omega-3 untuk menjaga kesehatan otot dan kulit.
+                            </p>
+                            <div class="top-down trans-delay-0-6">
+                                <button class="btn-flat btn-hover">
+                                    <span>Pesan Sekarang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="img left-right">
+                        <img src="{{ url_for('static', path='images/mussel.jpg')}}" alt="">
+                    </div>
+
+                </div>
+            </div>
+            <!-- slider controller -->
+            <button class="slide-controll slide-next">
+                <i class='bx bxs-chevron-right'></i>
+            </button>
+            <button class="slide-controll slide-prev">
+                <i class='bx bxs-chevron-left'></i>
+            </button>
+            <!-- end slider controller -->
+        </div>
+    </div>
+    <!-- end hero section -->
+
+    <!-- promotion section -->
+    <div class="promotion">
+        <div class="section-header">
+            <h2>Kategori Seafood</h2>
+        </div>
+        <div class="row">
+            <div class="col-4 col-md-12 col-sm-12">
+                <div class="promotion-box">
+                    <div class="text">
+                        <h3>Ready to Eat</h3>
+                        <a href="/products-page?id_category=1">
+                            <button class="btn-flat btn-hover">tertarik</button>
+                        </a>
+                    </div>
+                    <img src="{{ url_for('static', path='images/ready to eat.png')}}" style="border-radius: 10px;" alt="">
+                </div>
+            </div>
+            <div class="col-4 col-md-12 col-sm-12">
+                <div class="promotion-box">
+                    <div class="text">
+                        <h3>Prawns</h3>
+                        <a href="/products-page?id_category=4">
+                            <button class="btn-flat btn-hover">tertarik</button>
+                        </a>
+                    </div>
+                    <img src="{{ url_for('static', path='images/prawn.png')}}" style="border-radius: 10px;" alt="">
+                </div>
+            </div>
+            <div class="col-4 col-md-12 col-sm-12">
+                <div class="promotion-box">
+                    <div class="text">
+                        <h3>Crab & Lobster</h3>
+                        <a href="/products-page?id_category=3">
+                            <button class="btn-flat btn-hover">tertarik</button>
+                        </a>
+                    </div>
+                    <img src="{{ url_for('static', path='images/lobster.png')}}" style="border-radius: 10px;" alt="">
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-6 col-md-4 col-sm-12">
+                <div class="promotion-box">
+                    <div class="text">
+                        <h3>Fish - Fillets & Tails</h3>
+                        <a href="/products-page?id_category=2">
+                            <button class="btn-flat btn-hover">tertarik</button>
+                        </a>
+                    </div>
+                    <img src="{{ url_for('static', path='images/fish fillet.jpg')}}" style="border-radius: 10px;" alt="">
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-sm-12">
+                <div class="promotion-box">
+                    <div class="text">
+                        <h3>Mussels, Bugs & Shellfish</h3>
+                        <a href="/products-page?id_category=5">
+                            <button class="btn-flat btn-hover">tertarik</button>
+                        </a>
+                        
+                    </div>
+                    <img src="{{ url_for('static', path='images/mussel.png')}}" style="border-radius: 10px;" alt="">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- end promotion section -->
+
+
+    <!-- product list -->
+    <div class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Seafood terbaru</h2>
+            </div>
+            <div class="row" id="latest-products">
+                {% for product in products %}
+                <div class="col-4 col-md-12 col-sm-12">
+                    <div class="product-card">
+                        <div class="product-card-img">
+                            <img src="/static/images/{{ product.product_image }}" alt="{{ product.name }}">
+                        </div>
+                        <div class="product-card-info">
+                            <div class="product-btn">
+                                <a href="/products-detail/{{ product.id }}">
+                                    <button class="btn-flat btn-hover btn-shop-now">pesan</button>
+                                </a>
+                                <button class="btn-flat btn-hover btn-cart-add">
+                                    <i class='bx bxs-cart-add'></i>
+                                </button>
+                                <button class="btn-flat btn-hover btn-cart-add">
+                                    <i class='bx bxs-heart'></i>
+                                </button>
+                            </div>
+                            <div class="product-card-name">
+                                <h4>{{ product.name }}</h4>
+                            </div>
+                            <br>
+                            <div class="product-card-price">
+                                <span class="curr-price">Rp {{ product.new_price }} <span>{{ product.harga_note }}</span></span>
+                            </div>
+
+                            <div style="display: inline-block;">
+                                <br>
+                                <p style="display: inline;">Rp <del>{{ product.original_price }}</del></p>
+                                <p style="background-color: #f99090; border-radius: 5px; padding: 5px; color: black; display: inline;">{{ product.percentage_discount }}%</p>
+                            </div>
+                            
+                            <br>                                         
+                            <br>
+                            <p>{{ product.lokasi }}</p>
+                            <h4>{{ product.produk_note }}</h4>
+                        </div>
+                    </div>
+                </div>
+                {% if loop.index % 3 == 0 %}
+                    </div><div class="row">
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="section-footer">
+                <a href="/products-page" class="btn-flat btn-hover">view all</a>
+            </div>
+        </div>
+    </div>
+    <!-- end product list -->
+
+
+    <!-- blogs -->
+    <div class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Warung Omega</h2>
+            </div>
+            <div class="blog">
+                <div class="blog-img">
+                    <img src="{{ url_for('static', path='images/food-recipe.jpg')}}" style="border-radius: 10px;" alt="">
+                </div>
+                <div class="blog-info">
+                    <div class="blog-title">
+                        <h4>Resep Makanan</h4>
+                    </div>
+                    <div class="blog-preview">
+                        Di Warung Omega, kami percaya bahwa bahan berkualitas tinggi dari laut harus diolah dengan cara yang tepat. Nikmati koleksi resep seafood kami yang tidak hanya lezat, tetapi juga kaya manfaat kesehatan, berkat kandungan Omega-3 yang melimpah. Dengan panduan dari koki terbaik dan komunitas lokal kami, temukan cara baru untuk menghidangkan hidangan sehat yang mendukung kecerdasan dan kesehatan jantung Anda. Bersiaplah untuk menjelajahi dapur Anda, dan kami akan pastikan Anda mendapatkan seafood segar dengan nutrisi terbaik untuk diolah!
+                    </div>
+                    <a href="/reseps-page">
+                        <button class="btn-flat btn-hover">penasaran</button>
+                    </a>
+                </div>
+            </div>
+            <div class="blog row-revere">
+                <div class="blog-img">
+                    <img src="{{ url_for('static', path='images/news-.jpg')}}" style="border-radius: 10px;" alt="">
+                </div>
+                <div class="blog-info">
+                    <div class="blog-title">
+                        <h4>Berita</h4>
+                    </div>
+                    <div class="blog-preview">
+                        Berita terkini dari Warung Omega membawa Anda lebih dekat dengan dunia seafood yang tidak hanya lezat, tetapi juga penuh manfaat kesehatan. Kami mengupas berbagai topik menarik seputar keajaiban Omega-3 yang terkandung dalam produk laut segar kami, serta bagaimana konsumsi rutin seafood dapat meningkatkan kecerdasan dan menjaga kesehatan jantung. Dapatkan informasi terbaru dari industri perikanan, tips dari para ahli, hingga tren masak seafood sehat yang dapat Anda ikuti. Bersama Warung Omega, pastikan Anda selalu mendapatkan berita dan produk terbaik untuk hidup yang lebih sehat.
+                    </div>
+                    <button class="btn-flat btn-hover">penasaran</button>
+                </div>
+            </div>
+            <div class="section-footer">
+                <a href="#" class="btn-flat btn-hover">kembali ke atas</a>
+            </div>
+        </div>
+    </div>
+    <!-- end blogs -->
+    {% endblock %}
