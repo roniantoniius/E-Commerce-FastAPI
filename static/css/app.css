@@ -154,6 +154,24 @@ ul.devided > li:last-child {
     font-size: 25px;
     font-weight: 700;
 }
+.custom-list {
+    list-style-type: none; /* Menghilangkan bullet bawaan */
+    padding-left: 0;
+}
+
+.custom-list li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.custom-list li::before {
+    content: '\f10c'; /* Gunakan kode ikon boxicon */
+    font-family: 'boxicons';
+    font-size: 1.2em;
+    margin-right: 10px;
+    color: #000; /* Sesuaikan warna */
+}
 
 .search {
     width: 600px;
@@ -170,6 +188,39 @@ ul.devided > li:last-child {
     border-radius: 10px;
     border: 0;
     background-color: var(--second-bg-color);
+}
+
+.search-results {
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.search-results div {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-results div:hover {
+    background-color: #f1f1f1; /* Mengubah warna saat hover */
+}
+
+.search-results table {
+    width: 100%;
+}
+
+.search-results img {
+    border-radius: 4px;
+}
+
+.search-results td {
+    padding: 5px;
+    vertical-align: middle;
+}
+
+.search-results td:hover {
+    background-color: #f1f1f1; /* Mengubah warna saat hover */
 }
 
 .search i {
@@ -483,6 +534,7 @@ ul.devided > li:last-child {
     transform: scale(1.1);
 }
 
+
 .section {
     padding: 60px 0;
 }
@@ -500,9 +552,7 @@ ul.devided > li:last-child {
 
 .product-card {
     background-color: var(--main-bg-color);
-    transition: all 0.3s ease-in-out;
-    border-radius: 10px;
-    
+    transition: all 0.3s ease-in-out;    
 }
 
 .product-card:hover {
@@ -515,12 +565,10 @@ ul.devided > li:last-child {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
 }
 
 .product-card-img img {
     max-height: 100%;
-    border-radius: 10px;
     transition: all 0.3s ease-in-out;
 }
 
@@ -529,7 +577,6 @@ ul.devided > li:last-child {
     padding: 20px;
     text-align: center;
     position: relative;
-    border-radius: 10px;
 }
 
 .product-card-name {
@@ -540,6 +587,7 @@ ul.devided > li:last-child {
 .product-card-price {
     font-size: 15px;
 }
+
 
 .product-card-price .curr-price {
     margin-left: 5px;
@@ -560,7 +608,6 @@ ul.devided > li:last-child {
     visibility: hidden;
     transform: translateY(20px);
     transition: all 0.3s ease-in-out;
-    border-radius: 10px;
 }
 
 .product-card:hover .product-btn {
