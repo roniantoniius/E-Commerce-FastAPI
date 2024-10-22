@@ -13,6 +13,7 @@ from datetime import datetime
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 import jwt
+import requests
 from datetime import date
 from tortoise.expressions import F
 from tortoise.functions import Sum
@@ -34,12 +35,34 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from tortoise.transactions import in_transaction
 import json
+import midtransclient
+from dotenv import load_dotenv
+import os
+from decimal import Decimal
+
 
 config_credentials = dict(dotenv_values(".env"))
 
 app = FastAPI(
     title="Warung Omega API: E-commerce Seafood Restaurant",
     version="3,14"
+)
+
+load_dotenv()
+
+MIDTRANS_SERVER_KEY = os.environ.get('YOUR_MIDTRANS_SERVER_KEY')
+MIDTRANS_CLIENT_KEY = os.environ.get('YOUR_MIDTRANS_CLIENT_KEY')
+
+midtrans_core_api = midtransclient.CoreApi(
+    is_production=False, 
+    server_key=MIDTRANS_SERVER_KEY, 
+    client_key=MIDTRANS_CLIENT_KEY  
+)
+
+snap = midtransclient.Snap(
+    is_production=False, 
+    server_key=MIDTRANS_SERVER_KEY, 
+    client_key=MIDTRANS_CLIENT_KEY  
 )
 
 app.add_middleware(
@@ -554,10 +577,11 @@ async def get_my_belis(request: Request, username: str):
     user = await User.filter(username=username).first()
 
     if user is None:
-        return templates.TemplateResponse("beli.jinja", {
+        return templates.TemplateResponse("beli.html", {
             "request": request, 
             "username": None, 
-            "id_user": None
+            "id_user": None,
+            "client_key": config_credentials["YOUR_MIDTRANS_CLIENT_KEY"]
         })
 
     id_user = user.id
@@ -586,12 +610,13 @@ async def get_my_belis(request: Request, username: str):
     username = user.username
 
     response = templates.TemplateResponse(
-        "beli.jinja",
+        "beli.html",
         {
             "request": request,
             "beli_list": beli_list,
             "username": username,
-            "id_user": id_user
+            "id_user": id_user,
+            "client_key": config_credentials["YOUR_MIDTRANS_CLIENT_KEY"]
         }
     )
     return response
@@ -651,31 +676,10 @@ async def hapus_beli(beli_id: int,
     await beli.delete()
     return {"status": "ok"}
 
+
 class TransaksiInput(BaseModel):
     total: float
 
-# @app.post("/transaksis")
-# async def create_transaksi(transaksi_input: TransaksiInput,
-#                            user: user_pydantic = Depends(get_current_user)):
-    
-#     belis = await Beli.filter(user=user).select_related('product')
-#     if not belis:
-#         raise HTTPException(status_code=404, detail="Tidak ada beli yang ditemukan")
-    
-#     transaksi_obj = await Transaksi.create(
-#         user_id=user.id,
-#         total=transaksi_input.total,
-#     )
-
-#     for beli in belis:
-#         await transaksi_obj.belis.add(beli)
-
-
-#     return {
-#         "status": "ok",
-#         "data": await transaksi_pydantic.from_tortoise_orm(transaksi_obj),
-#         "username": user.username
-#     }
 
 @app.post("/transaksis")
 async def create_transaksi(transaksi_input: TransaksiInput,
@@ -729,7 +733,7 @@ async def get_my_transaksis(request: Request, username: str):
             "id_transaksi": transaksi.id_transaksi,
             "products": products,
             "total": transaksi.total,
-            "status": "Completed" if transaksi.status else "Pending"
+            "status": "Sukses" if transaksi.status else "Gagal"
         }
         transaksi_list.append(transaksi_data)
 
@@ -750,6 +754,72 @@ async def get_my_transaksis(request: Request, username: str):
 async def get_transaksis(user: user_pydantic = Depends(get_current_user)):
     transaksis = await Transaksi.filter(user=user).prefetch_related('belis')
     return transaksis
+
+@app.put("/transaksis/edit/{id_transaksi}")
+async def update_transaksi_status(id_transaksi: int, user: user_pydantic = Depends(get_current_user)):
+    transaksi = await Transaksi.get(id_transaksi=id_transaksi, user=user)
+    
+    if not transaksi:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+
+    transaksi.status = True
+    await transaksi.save()
+
+    return {
+        "status": "ok",
+        "data": await transaksi_pydantic.from_tortoise_orm(transaksi),
+        "message": "Transaksi status updated to completed"
+    }
+
+@app.post("/midtrans/token/{id_transaksi}")
+async def get_midtrans_token(id_transaksi: int, user: user_pydantic = Depends(get_current_user)):
+    try:
+        # Mengambil transaksi berdasarkan id_transaksi dan user
+        transaksi = await Transaksi.filter(id_transaksi=id_transaksi, user=user).prefetch_related('details__product').first()
+
+        if not transaksi:
+            raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+
+        # Ambil data produk yang terkait dengan transaksi
+        details = transaksi.details
+        products = ", ".join([detail.product.name for detail in details]) if details else "No Products"
+        
+        # Membuat payload untuk permintaan token transaksi ke Midtrans
+        transaction_data = {
+            "transaction_details": {
+                "order_id": f"order-{id_transaksi}",
+                "gross_amount": float(transaksi.total),  # Konversi Decimal ke float
+            },
+            "item_details": [
+                {
+                    "id": detail.product.id,
+                    "price": float(detail.product.new_price),  # Konversi Decimal ke float
+                    "quantity": detail.kuantitas,
+                    "name": detail.product.name,
+                }
+                for detail in details
+            ],
+            "customer_details": {
+                "first_name": user.username,
+                "email": user.email,
+            }
+        }
+
+        # Meminta token dari Midtrans
+        snap_response = snap.create_transaction(transaction_data)
+        token = snap_response.get('token')
+
+        if not token:
+            raise HTTPException(status_code=500, detail="Gagal mendapatkan token transaksi dari Midtrans")
+
+        # Berikan token kembali ke klien
+        return {"token": token}
+
+    except Exception as e:
+        # Menangkap error dan melakukan logging
+        print(f"Error mendapatkan token Midtrans untuk transaksi {id_transaksi}: {e}")
+        raise HTTPException(status_code=500, detail="Terjadi kesalahan saat memproses token transaksi")
+
 
 @app.delete("/transaksis/{id_transaksi}")
 async def delete_transaksi(id_transaksi: int,
@@ -806,6 +876,69 @@ async def get_transaksi_by_id(id_transaksi: int, user: user_pydantic = Depends(g
     }
 
     return {"status": "ok", "data": transaksi_data}
+
+# @app.post("/transaksis/initiate")
+# async def initiate_transaction(request: Request):
+#     data = await request.json()
+#     total = data.get("total")
+#     username = data.get("username")
+
+#     user = await User.filter(username=username).first()
+#     if user is None:
+#         raise HTTPException(status_code=404, detail="User  not found")
+
+#     # Buat transaksi
+#     transaksi_obj = await Transaksi.create(
+#         user_id=user.id,
+#         total=total,
+#     )
+
+#     # Buat parameter transaksi untuk Snap
+#     params = {
+#         "transaction_details": {
+#             "order_id": str(transaksi_obj.id_transaksi),
+#             "gross_amount": total
+#         },
+#         "customer_details": {
+#             "first_name": user.username,
+#             "email": user.email
+#         },
+#         "item_details": [{
+#             "id": str(transaksi_obj.id_transaksi),
+#             "price": total,
+#             "quantity": 1,
+#             "name": "Total Pembelian"
+#         }]
+#     }
+
+#     # Proses transaksi dengan Snap Midtrans
+#     transaction = snap.create_transaction(params)
+
+#     # Simpan token transaksi
+#     transaksi_obj.token = transaction['token']
+#     await transaksi_obj.save()
+
+#     return {
+#         "status": "ok",
+#         "token": transaction['token'],
+#         "order_id": transaksi_obj.id_transaksi
+#     }
+
+# @app.post("/transaksis/callback")
+# async def callback_transaksi(request: Request):
+#     notification = await request.json()
+
+#     # Cek status transaksi
+#     if notification['transaction_status'] == 'settlement':
+#         # Update status transaksi
+#         order_id = notification['order_id']
+#         transaksi_obj = await Transaksi.get(id_transaksi=order_id)
+#         transaksi_obj.status = True
+#         await transaksi_obj.save()
+
+#     return {
+#         "status": "ok"
+#     }
 
 @app.post("/uploadfile/product/{id}")
 async def create_upload_file(id: int, file: UploadFile = File(...), user: user_pydantic = Depends(get_current_user)):
