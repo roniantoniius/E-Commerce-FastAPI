@@ -1,0 +1,163 @@
+    {% extends "base.html" %}
+
+    {% block title %}Warung Omega - Produk Seafood{% endblock %}
+
+    {% block content %}
+
+    <!-- product-detail content -->
+    <div class="bg-main">
+        <div class="container">
+            {% if not username %}
+            <!-- Trigger SweetAlert2 if the user is not logged in -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Oops...',
+                        text: 'Kamu harus login terlebih dahulu untuk membeli produk, sebentar kok :).',
+                        confirmButtonText: 'Login Sekarang',
+                        confirmButtonColor: '#3085d6',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Force a page reload to go to login
+                            window.location.href = "/";
+                        }
+                    });
+                });
+            </script>
+            {% endif %}
+            <div class="box">
+                <div class="breadcumb">
+                    <a href="/">home</a>
+                    <span><i class='bx bxs-chevrons-right'></i></span>
+                    <a href="/products-page">all products</a>
+                    <span><i class='bx bxs-chevrons-right'></i></span>
+                    <a href="#">{{ product.name }}</a>
+                </div>
+            </div>
+
+            <div class="row product-row">
+                <div class="col-5 col-md-12">
+                    <div class="product-img" id="product-img">
+                        <img src="/static/images/{{ product.product_image }}" alt="{{ product.name }}" style="border-radius: 10px; width: 500px; height: 400px;">
+                    </div>
+                </div>
+                <div class="col-7 col-md-12">
+                    <div class="product-info">
+                        <h1>{{ product.name }}</h1>
+                        <div class="product-info-detail">
+                            <span class="product-info-detail-title">Deskripsi Seafood:</span>
+                        </div>
+                        <p class="product-description">{{ product.product_description }}</p>
+                        <p>Rp <del>{{ product.original_price }}</del></p>
+                        <h4 style="background-color: #f99090; border-radius: 5px; padding: 5px; color: black; display: inline-block;">Diskon: {{ product.percentage_discount }}%</h4>
+                        <div class="product-info-price">Rp {{ product.new_price }}</div>
+
+                        <form id="beli-form">
+                            <input type="hidden" id="produk-id" name="produk_id" value="{{ product.id }}">
+                            <div class="product-quantity-wrapper">
+                                <span class="product-quantity-btn"  id="decrease-qty">
+                                    <i class='bx bx-minus'></i>
+                                </span>
+                                <span class="product-quantity" id="kuantitas">1</span>
+                                <span class="product-quantity-btn" id="increase-qty">
+                                    <i class='bx bx-plus'></i>
+                                </span>
+                            </div>
+                            <input type="hidden" id="kuantitas-input" name="kuantitas" value="1">
+                            <button type="submit" class="btn-flat btn-hover">Beli</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="box">
+                <div class="box-header">
+                    Tips mengolah {{ product.name }}
+                </div>
+                <div class="product-detail-description">
+                    <div class="product-detail-description-content">
+                        <p>{{ product.tips }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- end product-detail content -->
+    <script>
+        // JavaScript untuk menangani perubahan kuantitas
+        document.addEventListener('DOMContentLoaded', function() {
+            let kuantitas = 1;
+            const kuantitasSpan = document.getElementById('kuantitas');
+            const kuantitasInput = document.getElementById('kuantitas-input');
+    
+            document.getElementById('decrease-qty').addEventListener('click', function() {
+                if (kuantitas > 1) {
+                    kuantitas--;
+                    kuantitasSpan.textContent = kuantitas;
+                    kuantitasInput.value = kuantitas;
+                }
+            });
+    
+            document.getElementById('increase-qty').addEventListener('click', function() {
+                kuantitas++;
+                kuantitasSpan.textContent = kuantitas;
+                kuantitasInput.value = kuantitas;
+            });
+    
+            // Kirim form ke backend menggunakan fetch
+            const form = document.getElementById('beli-form');
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+    
+                const produk_id = document.getElementById('produk-id').value;
+                const kuantitas = document.getElementById('kuantitas-input').value;
+    
+                const data = {
+                    produk_id: parseInt(produk_id),
+                    kuantitas: parseInt(kuantitas)
+                };
+    
+                try {
+                    const response = await fetch('/belis', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+    
+                    if (response.ok) {
+                        const result = await response.json();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: 'Produk berhasil dibeli!',
+                            confirmButtonColor: '#3085d6'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = "/belis/{{ username }}";
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Terjadi kesalahan saat membeli produk.',
+                            confirmButtonColor: '#d33'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'Tidak dapat terhubung ke server.',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            });
+        });
+    </script>
+    {% endblock %}
