@@ -32,7 +32,7 @@
                 <h1 class="accordion-header" id="headingOne" style="background-color: white; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
                     <button class="accordion-button d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne" style="background-color: white; box-shadow: none;">
                         <img src="{{ url_for('static', path='images/logo putih omega-no bg.png') }}" alt="logo" class="mb-logo" style="width: 200px; height: auto;">
-                        <h4 class="fw-bold" style="flex-grow: 1; text-align: right; font-weight: bold; padding-right: 10px;">Total Transaksi: <span id="total-price">Rp 0</span></h4>
+                        <h4 class="fw-bold" style="flex-grow: 1; text-align: right; font-weight: bold; padding-right: 10px;">Total Transaksi Berhasil: <span id="total-price">Rp 0</span></h4>
                     </button>
                 </h1>
                 <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
@@ -54,13 +54,11 @@
                                     <td>{{ transaksi.products }}</td>
                                     <td>
                                         <span class="badge 
-                                            {% if transaksi.status == 'True' %}bg-success
+                                            {% if transaksi.status == 'Sukses' %}bg-primary
                                             {% else %}bg-warning
                                             {% endif %}
                                             " style="font-size: 18px; font-weight: bold; color: #ffffff;"
-                                        >
-                                            {{ transaksi.status }}
-                                        </span>
+                                        >{{ transaksi.status }}</span>
                                     </td>
                                     <td class="text-right"><strong>Rp {{ transaksi.total }}</strong></td>
                                 </tr>
@@ -85,25 +83,36 @@
 <script>
     function calculateTotalPrice() {
         let totalPrice = 0;
-        // Ubah selector untuk memilih elemen <td> yang berisi harga
-        const hargaElements = document.querySelectorAll('tbody tr td.text-right');
+        // Pilih semua baris transaksi di dalam <tbody>
+        const transaksiRows = document.querySelectorAll('tbody tr');
 
-        hargaElements.forEach(hargaElement => {
-            let hargaText = hargaElement.innerText.replace('Rp', '').trim();
-            hargaText = hargaText.split('.')[0]; // Menghapus format jika ada
-            hargaText = hargaText.replace(/\./g, ''); // Menghapus titik
+        transaksiRows.forEach(row => {
+            // Cari elemen <td> yang berisi status dan harga
+            const statusElement = row.querySelector('td span.badge');
+            const hargaElement = row.querySelector('td.text-right');
 
-            let harga = parseInt(hargaText, 10); // Mengubah string menjadi angka
+            if (statusElement && hargaElement) {
+                // Periksa jika status adalah "Sukses"
+                const statusText = statusElement.innerText.trim();
+                if (statusText === 'Sukses') {
+                    // Ambil harga dan format menjadi angka
+                    let hargaText = hargaElement.innerText.replace('Rp', '').trim();
+                    hargaText = hargaText.split('.')[0]; // Menghapus format jika ada
+                    hargaText = hargaText.replace(/\./g, ''); // Menghapus titik
 
-            if (!isNaN(harga)) {
-                totalPrice += harga; // Menambahkan harga ke total
+                    let harga = parseInt(hargaText, 10); // Mengubah string menjadi angka
+
+                    if (!isNaN(harga)) {
+                        totalPrice += harga; // Menambahkan harga ke total jika status "Sukses"
+                    }
+                }
             }
         });
 
-        document.getElementById('total-price').innerText = 'Rp ' + totalPrice.toLocaleString('id-ID'); // Format total harga
+        // Tampilkan total harga dengan format Rupiah
+        document.getElementById('total-price').innerText = 'Rp ' + totalPrice.toLocaleString('id-ID');
     }
 
     document.addEventListener('DOMContentLoaded', calculateTotalPrice);
-
 </script>
 {% endblock %}
