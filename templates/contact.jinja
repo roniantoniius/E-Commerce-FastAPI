@@ -1,0 +1,53 @@
+    {% extends 'base.html' %}
+
+    {% block title %}Contact Us - Warung Omega{% endblock %}
+
+    {% block content %}
+    <div class="container" style="display: flex; flex-wrap: wrap; margin-top: 50px;">
+
+        <!-- Left Section (Image) -->
+        <div style="flex: 1; padding: 20px;">
+            <img src="{{ url_for('static', path='images/restaurant.jpg')}}" alt="Warung Omega" style="width: 100%; height: auto; border-radius: 10px;">
+        </div>
+
+        <!-- Right Section (Contact Information) -->
+        <div style="flex: 1; padding: 20px;">
+            <h1>Warung Omega</h1>
+            <br>
+            <p><strong>Alamat Restoran Utama:</strong><br>
+            RT.4/RW.4, Cipinang Cempedak, Kecamatan Jatinegara, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta</p>
+            <br>
+            <p><strong>Alamat Cabang Restoran 2:</strong><br>
+            Jl. Samudera Indah No. 456, Bekasi, Indonesia</p>
+            <br>
+            <p><strong>Nomor Telepon:</strong><br>
+            Pemesanan melalui telepon untuk DKI Jakarta dan Bekasi dapat dilakukan di (+62) 21-1234567</p>
+            <br>
+            <p><strong>Email:</strong><br>
+            contactsupport@warungomega.com</p>
+            <br>
+            
+        </div>
+    </div>
+    <!-- Bagian Lokasi Peta -->
+    <br>
+    <h2 style="text-align: center;">Lokasi Kami</h2>
+    <br>
+    <div id="map" style="height: 400px; width: 100%; margin-bottom: 50px;"></div>
+    <script>
+        // Inisialisasi peta di div dengan ID 'map'
+        var map = L.map('map').setView([-6.240445468189376, 106.90830101624087], 13);
+
+        // Tambahkan tile layer dari OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Tambahkan marker untuk lokasi restoran
+        var marker = L.marker([-6.231464204367693, 106.87388026445646]).addTo(map);
+
+        // Popup yang muncul ketika marker di klik
+        marker.bindPopup("<b>Warung Omega</b><br>Jakarta").openPopup();
+    </script>
+    
+    {% endblock %}
