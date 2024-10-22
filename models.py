@@ -72,6 +72,12 @@ class Transaksi(Model):
     total = fields.DecimalField(max_digits=12, decimal_places=2)
     status = fields.BooleanField(default=False)
     
+class TransaksiDetail(Model):
+    id_detail = fields.IntField(pk=True, index=True)
+    transaksi = fields.ForeignKeyField('models.Transaksi', related_name='details', on_delete=fields.CASCADE)
+    product = fields.ForeignKeyField('models.Product', related_name='transaksi_details', on_delete=fields.CASCADE)
+    kuantitas = fields.IntField()
+    harga_total = fields.DecimalField(max_digits=12, decimal_places=2)
 
 
 user_pydantic = pydantic_model_creator(User, name ="User", exclude=("is_verified",))
